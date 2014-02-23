@@ -1,0 +1,183 @@
+div{
+	position: relative;
+}
+
+div.top {
+	height: 25px;
+	background: #B3DFDA;
+	text-align: center;
+	padding: 5px;
+	font: 16pt bold;
+}
+
+div.bottom {
+	height: 10px;
+	background: #A9FACD;
+}
+
+div.left {
+	padding: 10px;
+	font-size: 11pt;
+}
+
+div.right {
+	width: 30%;
+	font-size: 100%;
+	padding: 0 10px;
+}
+
+div.cluster {
+	background-color: silver;
+	padding: 10px;
+	border-radius: 10px;
+	margin: 20px 0;
+}
+
+div.clusterTitle input{
+	width: 100px;	
+}
+
+a.closeAnchor {
+	background: url('lib/images/close.gif') no-repeat center;
+	width: 12px;
+	right: 0px;
+	position: absolute;
+	font-size: 1px;
+	display: block;
+	height: 12px;
+	padding: 3px;
+	margin-top: -12px;
+	overflow: hidden;
+}
+
+a.smallClose {
+	background: url('lib/easyui/themes/default/images/tabs_icons.png') no-repeat -37px center;
+	width: 12px;
+	height: 12px;
+	display: block;
+	overflow: hidden;
+}
+
+div.metricsGroup > a.smallClose {
+	background-image: url('lib/images/white_tabs_icons.png');
+	position: absolute;
+	display: block;
+	z-index: 2;
+	right: 5px;
+	margin-top: 5px;
+}
+
+div.panel {
+	margin-bottom: 10px;
+}
+
+div.panel div.title {
+	background-color: black;
+	font-size: 12pt;
+	color: white;
+	border-radius: 10px 10px 0 0;
+	padding: 10px;
+}
+
+div.panel div.blue {
+	background-color: #555555;
+	font-size: 11pt;
+	color: white;
+}
+
+div.panel div.content {
+	border: 1px solid black;
+	background-color: white;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+td, th {
+	border: 1px solid darkgray;
+	padding: 5px;
+}
+
+th {
+	background-color: lightgray;
+}
+
+td.handle {
+	border: 0px;
+}
+
+button.green, button.blue {
+	cursor: pointer;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	color: #fff;
+}
+
+button.green {
+	padding: 6px 12px;
+	font-size: 16pt;
+	background-color: #47a447;
+	border-color: #398439;
+}
+
+button.blue {
+	padding: 4px 8px;
+	font-size: 12pt;
+	background-color: #428bca;
+	border-color: #357ebd;
+}
+
+div#periodPicker button.green{
+	padding: 4px 8px;
+	font-size: 12pt;
+}
+
+div.metricsGroup button.blue {
+	font-size: 10pt;
+}
+
+div#handleRRA {
+	position: absolute;
+	right: 30px;
+	top: 0;
+	width: 160px;
+}
+
+div#rraConfig{
+	width: 750px;
+}
+
+div#rraConfig div.content {
+	min-height: 100px;
+}
+
+div#rraConfig input{
+	width: 160px;
+}
+
+div#periodPicker{
+	position: absolute;
+	background-color: white;
+	border:1px solid black;
+	padding: 0px 10px;
+	z-index: 6;
+	display: none;
+}
+
+div#periodPicker div#label{
+	float: left;
+	margin: 0px 0 20px 5px;
+}
+
+div#periodPicker div#label p{
+	margin: 25px 0;		
+}
+
+div#periodPicker div#slider{
+	margin:20px 10px 20px 50px;
+}
+
+div#periodPicker div#slider div{
+	margin: 20px 0;
+}

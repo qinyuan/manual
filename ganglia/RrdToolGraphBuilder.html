@@ -1,0 +1,195 @@
+<html>
+
+<head>
+<meta http-equiv=Content-Type content="text/html;charset=utf-8">
+<title>正文</title>
+<link rel="stylesheet" href="styles/default.css" />
+<script src="highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+<body>
+
+<pre><code>
+&lt;?php
+class RrdToolGraphSeries {
+  const AREA = 1;
+  const STOCK = 2;
+  private $color = "#000000";
+  private $rrd_root;
+  private $rrd_file;
+  private $type;
+  private $title;
+  private $titleLength;
+
+  function setRrdRoot($rrd_root) {
+    if (!file_exists($rrd_root)) {
+      throw new Exception("invalid direcotry paht $rrd_root");
+    }
+    if ($rrd_root[strlen($rrd_root) - 1] != "/") {
+      $rrd_root .= "/";
+    }
+    $this -> rrd_root = $rrd_root;
+  }
+
+  function setTitle($title) {
+    $this -> title = $title;
+  }
+
+  function setTitleLength($titleLegth) {
+    $this -> titleLength = $titleLegth;
+  }
+
+  function setColor($color) {
+    $this -> color = $color;
+  }
+
+  function setRrdFile($rrd_file) {
+    $this -> rrd_file = $rrd_file;
+  }
+
+  function setType($type) {
+    $valid_values = array(self::AREA, self::STOCK);
+    if (!in_array($type, $valid_values)) {
+      $errorInfo = 'invalid $type value, the $type must in (';
+      $errorInfo .= join($valid_values, ', ');
+      $errorInfo .= ')';
+      throw new Exception($errorInfo);
+    }
+    $this -> type = $type;
+  }
+
+  function __toString() {
+    $fullRrdFilePath = $this -> rrd_root . $this -> rrd_file;
+    if (!file_exists($fullRrdFilePath)) {
+      throw new Exception("invalid rrd file path: $fullRrdFilePath");
+    }
+    $graph_name = str_replace(".rrd", "", $this -> rrd_file);
+    $str = "DEF:'$graph_name'='$fullRrdFilePath':'sum':AVERAGE ";
+
+    if ($this -> type == self::AREA) {
+      $str .= "AREA";
+    } else if ($this -> type == self::STOCK) {
+      $str .= "STACK";
+    } else {
+      throw new Exception("unexpected Error!");
+    }
+
+    $str .= ":'$graph_name'$this->color:'$this->title\\g' ";
+
+    $pos = $graph_name . "_pos";
+    $str .= "CDEF:$pos=$graph_name,0,INF,LIMIT ";
+
+    $last = $graph_name . "_last";
+    $min = $graph_name . "_min";
+    $avg = $graph_name . "_avg";
+    $max = $graph_name . "_max";
+
+    $str .= "VDEF:$last=$pos,LAST ";
+    $str .= "VDEF:$min=$pos,MINIMUM ";
+    $str .= "VDEF:$avg=$pos,AVERAGE ";
+    $str .= "VDEF:$max=$pos,MAXIMUM ";
+
+    $space = "";
+    if ($this -> titleLength &amp;&amp; ($spaceNum = $this -> titleLength - strlen($this -> title)) > 0) {
+      $space = str_repeat(" ", $spaceNum);
+    }
+    $str .= "GPRINT:'$last':'{$space} Now\:%5.1lf%%' ";
+    $str .= "GPRINT:'$min':'Min\:%5.1lf%%' ";
+    $str .= "GPRINT:'$avg':'Avg\:%5.1lf%%' ";
+    $str .= "GPRINT:'$max':'Max\:%5.1lf%%\l' ";
+
+    return $str;
+  }
+
+}
+
+class RrdToolGraphBuilder {
+
+  private $rrdtool_graph;
+  private $title;
+  private $upper_limit = null;
+  private $lower_limit = '0';
+  private $vertical_label;
+  private $add_height = 0;
+  private $font_size;
+  private $slope_mode = true;
+  private $rigid = true;
+  private $series = "";
+
+  function addSeries(RrdToolGraphSeries $series) {
+    $this -> series .= $series -> __toString();
+  }
+
+  function addHeight($height_to_add) {
+    $this -> add_height += $height_to_add;
+  }
+
+  function build(&amp;$rrdtool_graph) {
+    if ($this -> title) {
+      $rrdtool_graph['title'] = $this -> title;
+    }
+    if ($this -> upper_limit != null) {
+      $rrdtool_graph['upper-limit'] = $this -> upper_limit;
+    }
+    if ($this -> lower_limit != null) {
+      $rrdtool_graph['lower-limit'] = $this -> lower_limit;
+    }
+    if ($this -> vertical_label) {
+      $rrdtool_graph['vertical-label'] = $this -> vertical_label;
+    }
+
+    if (!isset($rrdtool_graph['extras'])) {
+      $rrdtool_graph['extras'] = '';
+    }
+    if ($this -> font_size) {
+      $rrdtool_graph['extras'] = ' --font LEGEND:' . $this -> font_size;
+    }
+    if ($this -> rigid) {
+      $rrdtool_graph['extras'] .= " --rigid";
+    }
+
+    if (!isset($rrdtool_graph['height'])) {
+      $rrdtool_graph['height'] = 0;
+    }
+    $rrdtool_graph['height'] += $this -> add_height;
+
+    $rrdtool_graph['series'] = $this -> series;
+
+    return $this -> rrdtool_graph;
+  }
+
+  function setTitle($title) {
+    $this -> title = $title;
+  }
+
+  function setUpperLimit($upper_limit) {
+    $this -> upper_limit = $upper_limit;
+  }
+
+  function setLowerLimit($lower_limit) {
+    $this -> lower_limit = $lower_limit;
+  }
+
+  function setVerticalLabel($vertical_label) {
+    $this -> vertical_label = $vertical_label;
+  }
+
+  function setFontSize($font_size) {
+    $this -> font_size = $font_size;
+  }
+
+  function setSlopeMode($slope_mode) {
+    $this -> slope_mode = $slope_mode;
+  }
+
+  function setRigid($rigid) {
+    $this -> rigid = $rigid;
+  }
+
+}
+?>
+</code></pre>
+
+</body>
+</html>

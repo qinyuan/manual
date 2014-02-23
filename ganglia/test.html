@@ -7,7 +7,6 @@
 	<link rel="stylesheet" href="lib/hightlight/styles/default.css" />
 	<link rel="stylesheet" href="lib/easyui/themes/default/easyui.css" />
 	<link rel="stylesheet" href="lib/manual.css" />
-	<link rel="stylesheet" href="calculator.css" />
 	<script src="lib/hightlight/highlight.pack.js"></script>
 	<script src="lib/jquery.min.js"></script>
 	<script src="lib/easyui/jquery.easyui.min.js"></script>
@@ -15,7 +14,6 @@
 		hljs.initHighlightingOnLoad();
 	</script>
 	<script src="lib/manual.js"></script>
-	<script src="calculator.js"></script>
 </head>
 
 <body class="easyui-layout">
@@ -1123,67 +1121,12 @@ cpu_idle.rrd的DS个数为2，RRA个数为5，单个RRA的行数为(244*4+374)/5
 </p>
 
 <h3>4.6 rrd文件总量计算器</h3>
-<div id="rrdCalculator">
-  <div class="panel">
-    <div class="panelTitle">RRD相关配置</div>
-    <div class="panelContent">
-      <p>
-        RRA(环状归档)个数：<input type="text" id="calRra" value="5" />
-        &nbsp;&nbsp;&nbsp;&nbsp;
-        单个RRA的行数：<input type="text" id="calRows" value="270" />
-        &nbsp;&nbsp;&nbsp;&nbsp;
-        指标数量：<input type="text" id="calMetricsSize" value="28" />
-      </p>
-      <table id="clusterConfig">
-        <tr><th>集群名</th><th>主机数量</th><th> </th></tr>
-      </table>
-      <button id="addClusterConfigButton">添加集群</button>
-    </div>
-  </div>
-  <div class="panel" id="calResult">
-    <div class="panelTitle">计算结果</div>
-    <div class="panelContent">
-      <fieldset>
-        <legend>主机目录</legend>
-        <p>
-          目录数：
-          <input type="text" id="hostFolderCount" readonly="readonly" />
-          &nbsp;&nbsp;&nbsp;&nbsp;
-        </p>
-        <p>
-          单个rrd大小：
-          <input type="text" id="singleRrdInHostFolder" readonly="readonly" /> byte
-        </p>
-        <p>
-          总大小：
-          <input type="text" id="hostFolderSize" readonly="readonly" /> byte
-        </p>
-      </fieldset>
-      <fieldset>
-        <legend>__SummaryInfo__目录</legend>
-        <p>
-          目录数：
-          <input type="text" id="summaryFolderCount" readonly="readonly" />
-          &nbsp;&nbsp;&nbsp;&nbsp;
-        </p>
-        <p>
-          单个rrd大小：
-          <input type="text" id="singleRrdInSummaryFolder" readonly="readonly" /> byte
-        </p>
-        <p>
-          总大小：
-          <input type="text" id="summaryFolderSize" readonly="readonly" /> byte
-        </p>
-      </fieldset>
-      <div id="calResultSummary">
-        Ganglia的rrd文件总大小：
-        <input type="text" id="calTotalSize" readonly="readonly" />
-      </div>
-      
-    </div>
-  </div>
+<p>
+这里提供了一个快速计算rrd文件总量的工具：<a href="calculator.html" target="_blank">rrd总量计算器</a>
+</p>
+	
+
 
 </div>
-
 </body>
 </html>

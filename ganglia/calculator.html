@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta http-equiv=Content-Type content="text/html;charset=utf-8">
+	<title>RRD文件总量计算器</title>
+	<link rel="stylesheet" href="lib/easyui/themes/default/easyui.css" />
+	<link rel="stylesheet" href="lib/easyui/themes/icon.css" />
+	<link rel="stylesheet" href="calculator.css" />
+	<script src="lib/jquery.min.js"></script>
+	<script src="lib/easyui/jquery.easyui.min.js"></script>
+	<script src="lib/smart.min.js"></script>
+	<script src="calculator.js"></script>
+</head>
+<body class="easyui-layout">
+	
+<div class="top" data-options="region:'north',border:false">
+RRD文件总量计算器
+</div>
+<div class="bottom" data-options="region:'south',border:false">
+</div>
+
+<div class="left" id="configDiv" data-options="region:'center',split:true,title:'配置参数'">
+
+
+<div id="rraConfig" class="panel">
+	<div class="title">数据归档配置</div>	
+	<div class="content">
+		<table>
+			<thead>
+				<tr>
+					<th>No.</th>
+					<th>数据样本时间间隔</th>
+					<th>数据样本保留时间</th>
+					<th>数据样本数量</th>
+				</tr>
+			</thead>
+			<tbody>
+			</tbody>
+		</table>
+		<div id="handleRRA">
+			<button id="addRRA" type="button" class="green" 
+				onclick="return rraManager.add();">添加数据归档</button>
+			<br><br>
+			如果对数据归档不是很理解，点击<a href="introductRRA.html" target="_blank">这里</a>
+		</div>
+	</div>
+</div>
+
+<div id="clusters"> </div>
+
+<button class="green" id="addCluster" 
+	onclick="return clusterManager.add();">添加集群</button>
+</div>
+
+
+<div class="right" id="resultDiv" data-options="region:'east',split:'true',title:'计算结果'">
+	<h2 style="color: red;">占用磁盘总量：<span id="totalSpace">0B</span></h2>
+	<div id="resultDetails">
+	</div>
+</div>
+
+<div id="periodPicker">
+	<div id="label">
+		<p>年</p><p>天</p><p>小时</p><p>分</p><p>秒</p>
+	</div>
+	<div id="slider">
+		<div><input type="text" id="yearPicker" style="width:50px;"/></div>
+		<div id="dayPicker"> </div>
+		<div id="hourPicker"> </div>
+		<div id="minPicker"> </div>
+		<div id="secPicker"> </div>
+	</div>
+	<div>
+		<button class="green" onclick="return periodPicker.update()">确定</button>
+		&nbsp;&nbsp;&nbsp;&nbsp;
+		<button class="blue" onclick="return periodPicker.hide()">取消</button>
+	</div>
+</div>
+
+</body>
+
+
+<script id="rraRowTpl" type="text/x-jsmart-tmpl"> 
+	<tr>
+		<td>{$index}</td>
+		<td>
+			<input type="text" value="{$interval}" 
+				readonly="readonly" onclick="periodPicker.show(this)" />
+			<input type="hidden" value="{$secInterval}" />
+		</td>
+		<td>
+			<input type="text" value="{$period}" 
+				readonly="readonly" onclick="periodPicker.show(this)" />
+			<input type="hidden" value="{$secPeriod}" />
+		</td>
+		<td>{$rows}</td>
+		<td class="handle">
+			<a href="javascript:void(0)" class="smallClose" 
+				onclick="return rraManager.remove(this);"> </a>
+		</td>
+	</tr>
+</script>
+
+<script id="clusterTpl" type="text/x-jsmart-tmpl">
+	<div class="cluster">
+		<a href="javascript:void(0)" class="closeAnchor" 
+			onclick="return clusterManager.remove(this);"> </a>
+		<div class="clusterTitle">
+			集群名：<input type="text" class="clusterName" value="{$clusterName}" 
+				onchange="return cal.update();" />
+			&nbsp;&nbsp;&nbsp;
+			主机数量：<input type="text" class="hostCount" value="1" 
+				onchange="return cal.update();" />	
+			&nbsp;&nbsp;&nbsp;
+			指标数量：<input type="text" class="metricsCount" value="0" readonly="readonly" />	
+			&nbsp;&nbsp;&nbsp;
+			<button class="blue addMetricsGroup" 
+				onclick="return metricsGroupManager.add(this);">添加指标组</button>
+		</div>
+	</div>
+</script>
+
+<script id="metricsGroupTpl" type="text/x-jsmart-tmpl">
+	<div class="metricsGroup panel">
+		<a href="javascript:void(0)" class="smallClose" 
+			onclick="return metricsGroupManager.remove(this);"> </a>
+		<div class="title blue">指标组：<span 
+			onclick="return metricsGroupManager.changeName(this);">{$groupName}</span></div>
+		<div class="content">
+			<table>
+				<thead>
+					<tr><th>No.</th><th>指标名</th><th>说明</th></tr>
+				</thead>
+				<tbody></tbody>
+			</table>
+			<button class="blue" onclick="return metricsManager.add(this)">添加指标</button>
+		</div>
+	</div>
+</script>
+
+<script id="metricsTpl" type="text/x-jsmart-tmpl">
+	<tr>
+		<td>{$index}</td>
+		<td><input type="text" value="{$name}" style="width:100px;" /></td>
+		<td><input type="text" value="{$desc}" title="{$desc}" style="width:620px;" /></td>
+		<td class="handle">
+			<a href="javascript:void(0)" class="smallClose" 
+				onclick="return metricsManager.remove(this);"> </a>
+		</td>
+	</tr>
+</script>
+
+<script id="resultDetailTpl" type="text/x-jsmart-tmpl">
+	<fieldset>
+		<legend>{$clusterName}</legend>
+		<h4>主机数：<span class="hostCount">{$hostCount}</span></h4>	
+		<h4>指标数：<span class="metricsSize">{$metricsCount}</span></h4>	
+		<h4>占用空间：<span class="space">{$space}</span></h4>
+	</fieldset>
+</script>
+
+<script id="resultSummaryTpl" type="text/x-jsmart-tmpl">
+	<fieldset>
+		<legend>汇总文件夹</legend>
+		<h4>指标数：<span class="metricsSize">{$metricsCount}</span></h4>	
+		<h4>占用空间：<span class="space">{$space}</span></h4>
+	</fieldset>
+</script>
+
+<script id="defaultMetrics" type="text/json">
+	{
+		"metricsGroups":[
+			{
+				"name":"负载(load)",
+				"items": [
+					{
+						"name":"Load_one",
+						"desc":"One minute load average，每分钟的系统平均负载"
+					},
+					{
+						"name":"Load_five",
+						"desc":"Five minute load average，每5分钟的系统平均负载"
+					},
+					{
+						"name":"Load_fifteen",
+						"desc":"Fifteen minute load average，每15分钟的系统平均负载"
+					}
+				]
+			},
+			{
+				"name":"内存(memory)",
+				"items": [
+					{
+						"name":"mem_total",
+						"desc":"Total amount of memory displayed in KBs，物理内存总量（KBs显示）"
+					},
+					{
+						"name":"mem_cached",
+						"desc":"Amount of cached memory，缓存内存大小"
+					},
+					{
+						"name":"mem_free",
+						"desc":"Amount of available memory，空闲内存大小"
+					},
+					{
+						"name":"mem_buffers",
+						"desc":"Amount of buffered memory，内核缓存的内存总量"
+					},
+					{
+						"name":"swap_total",
+						"desc":"Total amount of swap space displayed in KBs，交换分区（虚拟内存）总量（KBs显示）"
+					},
+					{
+						"name":"swap_free",
+						"desc":"Amount of available swap memory，空闲交换分区大小"
+					},
+					{
+						"name":"mem_shared",
+						"desc":"Amount of shared memory，共享内存大小"
+					}
+				]
+			},
+			{
+				"name":"进程(process)",
+				"items": [
+					{
+						"name":"proc_run",
+						"desc":"Total number of running processes，运行的进程数"
+					},
+					{
+						"name":"proc_total",
+						"desc":"Total number of processes，进程总数"
+					}
+				]
+			},
+			{
+				"name":"CPU",
+				"items": [
+					{
+						"name":"cpu_idle",
+						"desc":"Percentage of time that the CPU or CPUs were idle and the system did not have an outstanding disk I/O request，空闲CPU百分比"
+					},
+					{
+						"name":"cpu_aidle",
+						"desc":"Percent of time since boot idle CPU，启动的空闲CPU百分比"
+					},
+					{
+						"name":"cpu_user",
+						"desc":"Percentage of CPU utilization that occurred while executing at the user level，用户空间占用CPU百分比"
+					},
+					{
+						"name":"cpu_nice",
+						"desc":"Percentage of CPU utilization that occurred while executing at the user level with nice priority，用户进程空间内改变过优先级的进程占用CPU百分比"
+					},
+					{
+						"name":"cpu_system",
+						"desc":"Percentage of CPU utilization that occurred while executing at the system level，内核空间占用CPU百分比"
+					},
+					{
+						"name":"cpu_num",
+						"desc":"Total number of CPUs，CPU线程总数"
+					},
+					{
+						"name":"cpu_speed",
+						"desc":"CPU Speed in terms of MHz，CPU速度（MHz）"
+					},
+					{
+						"name":"cpu_wio",
+						"desc":"Percentage of time that the CPU or CPUs were idle during which the system had an outstanding disk I/O request，Cpu空闲时的最大I/O请求"
+					}
+				]
+			},
+			{
+				"name":"磁盘(disk)",
+				"items": [
+					{
+						"name":"part_max_used",
+						"desc":"Maximum percent used for all partitions，各分区磁盘最大使用率"
+					},
+					{
+						"name":"disk_total",
+						"desc":"Total available disk space，磁盘总大小"
+					},
+					{
+						"name":"disk_free",
+						"desc":"Total free disk space，剩余磁盘空间"
+					}
+				]
+			},
+			{
+				"name":"网络",
+				"items": [
+					{
+						"name":"pkts_in",
+						"desc":"Packets in per second，每秒进来的包"
+					},
+					{
+						"name":"pkts_out",
+						"desc":"Packets out per second，每秒出去的包"
+					},
+					{
+						"name":"bytes_in",
+						"desc":"Number of bytes in per second，每秒进来字节数"
+					},{
+						"name":"bytes_out",
+						"desc":"Number of bytes out per second，每秒出去字节数"
+					}
+				]
+			},
+			{
+				"name":"其他",
+				"items": [
+					{
+						"name":"boottime",
+						"desc":"The last time that the system was started，系统最近一次启动的时间"
+					}
+				]
+			}
+		]
+	}
+</script>
+
+</html>

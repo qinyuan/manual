@@ -1,0 +1,27 @@
+div.top {
+	height: 25px;
+	background: #B3DFDA;
+	text-align: center;
+	padding: 5px;
+	font: 16pt bold;
+}
+
+div.bottom {
+	height: 10px;
+	background: #A9FACD;
+}
+
+div.left {
+	width: 20%;
+	padding: 10px;
+	font-size: 9pt;
+}
+
+div.right {
+	font-size: 100%;
+	padding: 0 10px;
+}
+
+div.right p {
+	text-indent: 1.5em;
+}
