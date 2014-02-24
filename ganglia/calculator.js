@@ -1,124 +1,5 @@
-var rraManager, clusterManager, metricsGroupManager, metricsManager;
-var cal, periodPicker, defaultMetrics;
-$(document).ready(function() {
-	defaultMetrics = $.trim(document.getElementById('defaultMetrics').innerHTML);
-	eval("defaultMetrics=" + defaultMetrics + ";");
-	defaultMetrics = defaultMetrics['metricsGroups'];
-	
-	initObject();
-	cal.update();
-	decorateButton();
-});
-
-function initObject(){
-	cal = new Calculator();
-	cal.closeUpdate = true;
-
-	rraManager = new RRAManager();
-	metricsManager = new MetricsManager();
-	metricsGroupManager = new MetricsGroupManager();
-	clusterManager = new ClusterManager();
-	clusterManager.add();
-	initRRA();
-	periodPicker = new PeriodPicker();
-
-	cal.closeUpdate = false;
-	cal.update();
-}
-
-function Calculator() {
-	this.closeUpdate = false;
-}
-
-Calculator.prototype.update = function() {
-	if (this.closeUpdate) {
-		return;
-	}
-	this.updateMetricsCount();
-	this.updateResultDetails();
-};
-
-Calculator.prototype.updateResultDetails = function() {
-	if (this.closeUpdate) {
-		return;
-	}
-
-	var $trs = $('div#rraConfig tbody tr');
-	var rra = $trs.size();
-	var rows = 0;
-	$trs.each(function() {
-		rows += parseInt($(this).find('td:eq(3)').text());
-	});
-	rows = rows / rra;
-
-	var totalSpace = 0;
-	var maxMetricsCount = 0;
-
-	var $resultDetails = $('#resultDetails').empty();
-	var self = this;
-	$('#clusters div.cluster').each(function() {
-		$this = $(this);
-		var clusterName = $this.find('input.clusterName').val();
-		var hostCount = parseInt($this.find('input.hostCount').val());
-		var metricsCount = parseInt($this.find('input.metricsCount').val());
-		var space = self.getClusterSpace(hostCount, metricsCount, rra, rows);
-
-		totalSpace += space;
-		if (maxMetricsCount < metricsCount) {
-			maxMetricsCount = metricsCount;
-		}
-
-		var detail = parseTemplate("resultDetailTpl", {
-			"clusterName" : clusterName,
-			"hostCount" : hostCount,
-			"metricsCount" : metricsCount,
-			"space" : self.formatNumber(space + " bytes")
-		});
-		$resultDetails.append(detail);
-	});
-
-	var summaryFolderSize = this.getSummaryFolderSize(maxMetricsCount, rra, rows);
-	$resultDetails.append(parseTemplate("resultSummaryTpl", {
-		"metricsCount" : maxMetricsCount,
-		"space" : this.formatNumber(summaryFolderSize + " bytes")
-	}));
-
-	totalSpace += summaryFolderSize;
-	$('#totalSpace').text(this.formatNumber(totalSpace) + " bytes");
-};
-
-Calculator.prototype.formatNumber = function(num) {
-	var reg = /(\d{1,3})(?=(\d{3})+(?:$|\D))/g;
-	num = num.toString().replace(reg, "$1,");
-	return num;
-};
-
-Calculator.prototype.getSingleRRDSize = function(ds, rra, rows) {
-	return 8 * ds * rra * rows + 80 * ds * rra + 232 * ds + 112 * rra + 120;
-};
-
-Calculator.prototype.getHostFolderSize = function(hostCount, metricsCount, rra, rows) {
-	var singleRrdInHostFolder = this.getSingleRRDSize(1, rra, rows);
-	return hostCount * singleRrdInHostFolder * metricsCount;
-};
-
-Calculator.prototype.getSummaryFolderSize = function(metricsCount, rra, rows) {
-	var singleRrdInSummaryFolder = this.getSingleRRDSize(2, rra, rows);
-	return singleRrdInSummaryFolder * metricsCount;
-};
-
-Calculator.prototype.getClusterSpace = function(hostCount, metricsCount, rra, rows) {
-	var hostFolderSize = this.getHostFolderSize(hostCount, metricsCount, rra, rows);
-	var summaryFolderSize = this.getSummaryFolderSize(metricsCount, rra, rows);
-	return hostFolderSize + summaryFolderSize;
-};
-
-Calculator.prototype.updateMetricsCount = function() {
-	$('#clusters div.cluster').each(function() {
-		var metricsCount = $(this).find('tbody tr').size();
-		$(this).find('input.metricsCount').val(metricsCount);
-	});
-};
+var config = $.trim(document.getElementById('config').innerHTML);
+eval("config=" + config + ";");
 
 function Period(second, min, hour, day, year) {
 	if (!second) {
@@ -177,82 +58,70 @@ Period.prototype.getText = function() {
 	return str;
 };
 
-function PeriodPicker() {
-	this.$div = $('#periodPicker').css('display', 'none');
-	this.$bindText = null;
-	var args = {
-		showTip : true,
-		min : 0,
-		width : 600,
-		step : 1
-	};
+var periodPicker = {
+	$div : $('#periodPicker').css('display', 'none'),
+	$bindText : null,
+	$year : $('#year'),
+	$day : $('#day'),
+	$hour : $('#hour'),
+	$min : $('#min'),
+	$sec : $('#sec'),
+	show : function(element) {
+		this.$bindText = $(element);
+		var period = new Period(this.$bindText.next().val());
+		this.load(period);
 
-	this.yearPicker = $('#yearPicker');
-	this.dayPicker = $('#dayPicker');
-	this.hourPicker = $('#hourPicker');
-	this.minPicker = $('#minPicker');
-	this.secPicker = $('#secPicker');
+		var offset = this.$bindText.offset();
+		offset.top = offset.top + this.$bindText.height() + 5;
+		this.$div.show().offset(offset);
 
-	args.max = 364;
-	this.dayPicker.slider(args);
-	args.max = 23;
-	this.hourPicker.slider(args);
-	args.max = 59;
-	this.minPicker.slider(args);
-	args.max = 59;
-	this.secPicker.slider(args);
-}
+		this.eachText(function(key, $text, value) {
+			if (value !== 0) {
+				$text.select();
+				return true;
+			}
+		});
+	},
+	update : function() {
+		var period = this.getValue();
+		if (!rraManager.validate(period.getSeconds())) {
+			return;
+		}
+		this.$bindText.val(period.getText());
+		this.$bindText.next().val(period.getSeconds());
+		rraManager.refresh(this.$bindText.parent().parent());
+		this.hide();
+	},
+	getValue : function() {
+		var self = this;
+		function get(prefix) {
+			var str = self['$' + prefix].val().replace(/\D/g, '');
+			return str === "" ? 0 : parseInt(str);
+		}
 
-PeriodPicker.prototype.show = function(element) {
-	this.$bindText = $(element);
-	var period = new Period(this.$bindText.next().val());
-	this.load(period);
-
-	var offset = this.$bindText.offset();
-	offset.top = offset.top + this.$bindText.height() + 5;
-	this.$div.show().offset(offset);
-};
-
-PeriodPicker.prototype.update = function() {
-	var period = this.getValue();
-	if (!rraManager.validate(period.getSeconds())) {
-		return;
+		return new Period(get('sec'), get('min'), get('hour'), get('day'), get('year'));
+	},
+	load : function(period) {
+		this.eachText(function(key, $text) {
+			$text.val(period[key.replace('$', '')]);
+		});
+	},
+	hide : function() {
+		this.$bindText = null;
+		this.$div.hide();
+	},
+	eachText : function(func) {
+		var keys = ['$year', '$day', '$hour', '$min', '$sec'];
+		for (var i = 0, len = keys.length; i < len; i++) {
+			var key = keys[i];
+			var $text = this[key];
+			var value = parseInt($text.val());
+			if (func(key, $text, value)) {
+				break;
+			}
+		}
 	}
-	this.$bindText.val(period.getText());
-	this.$bindText.next().val(period.getSeconds());
-	rraManager.refresh(this.$bindText.parent().parent());
-	this.hide();
 };
-
-PeriodPicker.prototype.getValue = function() {
-	var year = parseInt(this.yearPicker.val());
-	var day = this.dayPicker.slider('getValue');
-	var hour = this.hourPicker.slider('getValue');
-	var min = this.minPicker.slider('getValue');
-	var sec = this.secPicker.slider('getValue');
-	return new Period(sec, min, hour, day, year);
-};
-
-PeriodPicker.prototype.load = function(period) {
-	this.yearPicker.val(period.year);
-	this.dayPicker.slider('setValue', period.day);
-	this.hourPicker.slider('setValue', period.hour);
-	this.minPicker.slider('setValue', period.min);
-	this.secPicker.slider('setValue', period.sec);
-};
-
-PeriodPicker.prototype.hide = function() {
-	this.$bindText = null;
-	this.$div.hide();
-};
-
-function initRRA() {
-	rraManager.add(15, 15 * 244);
-	rraManager.add(24 * 15, 24 * 15 * 244);
-	rraManager.add(168 * 15, 168 * 15 * 244);
-	rraManager.add(672 * 15, 672 * 15 * 244);
-	rraManager.add(5760 * 15, 5760 * 15 * 374);
-}
 
 function parseTemplate(templateId, data) {
 	var tplHTML = document.getElementById(templateId).innerHTML;
@@ -309,12 +178,146 @@ RRA.prototype.save = function($tr) {
 	$tr.find('td').eq(3).text(this.rows);
 };
 
-function RRAManager() {
-	this.count = 0;
-	this.listener = new Array();
-}
+var messageManager={
+	$message:$('#message'),
+	showCopyInfo:function(){
+		this.$message.css({
+			left:0,
+			top:0	
+		});
+		this.$message.text('复制成功！').fadeIn(250);
+		setTimeout(1000,function(){
+			this.$message.hide(250);
+		});
+	}	
+};
 
-RRAManager.prototype.add = function(interval, period) {
+var OBSERVER = {
+	stop : false,
+	create : function() {
+		var self = this;
+		return {
+			listener : new Array(),
+			attach : function(listener) {
+				if (!'update' in listener) {
+					throw new Error('invalid listener ' + listener);
+				}
+				this.listener.push(listener);
+			},
+			notify : function() {
+				if (self.stop === true) {
+					return;
+				}
+				for (var i = 0, len = this.listener.length; i < len; i++) {
+					this.listener[i].update();
+				}
+			},
+			update : function() {
+			}
+		};
+	}
+};
+
+var cal = OBSERVER.create();
+cal.update = function() {
+	this.updateMetricsCount();
+	this.updateResultDetails();
+};
+cal.updateResultDetails = function() {
+	var rra = rraManager.getRRACount();
+	var rows = rraManager.getAverageRows();
+
+	var totalSpace = 0;
+	var maxMetricsCount = 0;
+
+	var $resultDetails = $('#resultDetails').empty();
+	var self = this;
+	$('#clusters div.cluster').each(function() {
+		$this = $(this);
+		var clusterName = $this.find('input.clusterName').val();
+		var hostCount = parseInt($this.find('input.hostCount').val());
+		var metricsCount = parseInt($this.find('input.metricsCount').val());
+		var space = self.getClusterSpace(hostCount, metricsCount, rra, rows);
+
+		totalSpace += space;
+		if (maxMetricsCount < metricsCount) {
+			maxMetricsCount = metricsCount;
+		}
+
+		var detail = parseTemplate("resultDetailTpl", {
+			"clusterName" : clusterName,
+			"hostCount" : hostCount,
+			"metricsCount" : metricsCount,
+			"space" : self.formatNumber(space)
+		});
+		$resultDetails.append(detail);
+	});
+
+	var summaryFolderSize = this.getSummaryFolderSize(maxMetricsCount, rra, rows);
+	$resultDetails.append(parseTemplate("resultSummaryTpl", {
+		"metricsCount" : maxMetricsCount,
+		"space" : this.formatNumber(summaryFolderSize)
+	}));
+
+	totalSpace += summaryFolderSize;
+	$('#totalSpace').text(this.formatNumber(totalSpace));
+};
+cal.formatNumber = function(num) {
+	if (! typeof num === 'number') {
+		num = parseInt(num);
+	}
+	var level = null;
+	for (var i = 0, len = this.formatConfig.length; i < len; i++) {
+		var newLevel = this.formatConfig[i];
+		if (num >= newLevel.threshold) {
+			level = newLevel;
+		}
+	}
+
+	return (num / level.threshold).toFixed(2) + " " + level.tag;
+};
+cal.formatConfig = [{
+	tag : "b",
+	threshold : 0
+}, {
+	tag : 'Kb',
+	threshold : 1024
+}, {
+	tag : 'Mb',
+	threshold : 1024 * 1024
+}, {
+	tag : 'Gb',
+	threshold : 1024 * 1024 * 1024
+}, {
+	tag : 'Tb',
+	threshold : 1024 * 1024 * 1024 * 1024
+}];
+cal.getSingleRRDSize = function(ds, rra, rows) {
+	return 8 * ds * rra * rows + 80 * ds * rra + 232 * ds + 112 * rra + 120;
+};
+cal.getHostFolderSize = function(hostCount, metricsCount, rra, rows) {
+	var singleRrdInHostFolder = this.getSingleRRDSize(1, rra, rows);
+	return hostCount * singleRrdInHostFolder * metricsCount;
+};
+cal.getSummaryFolderSize = function(metricsCount, rra, rows) {
+	var singleRrdInSummaryFolder = this.getSingleRRDSize(2, rra, rows);
+	return singleRrdInSummaryFolder * metricsCount;
+};
+cal.getClusterSpace = function(hostCount, metricsCount, rra, rows) {
+	var hostFolderSize = this.getHostFolderSize(hostCount, metricsCount, rra, rows);
+	var summaryFolderSize = this.getSummaryFolderSize(metricsCount, rra, rows);
+	return hostFolderSize + summaryFolderSize;
+};
+cal.updateMetricsCount = function() {
+	$('#clusters div.cluster').each(function() {
+		var metricsCount = $(this).find('tbody tr').size();
+		$(this).find('input.metricsCount').val(metricsCount);
+	});
+};
+
+var rraManager = OBSERVER.create();
+rraManager.count = 0;
+rraManager.add = function(interval, period) {
 	this.count++;
 	if (!interval || !period) {
 		var $tr = $('#rraConfig tbody tr:last-child');
@@ -331,9 +334,9 @@ RRAManager.prototype.add = function(interval, period) {
 		'rows' : rra.rows
 	};
 	$('#rraConfig tbody').append(parseTemplate('rraRowTpl', data));
+	this.notify();
 };
-
-RRAManager.prototype.remove = function(anchor) {
+rraManager.remove = function(anchor) {
 	var $tr = $(anchor).parent().parent();
 	var $nextTr = $tr.next();
 	$tr.remove();
@@ -343,9 +346,9 @@ RRAManager.prototype.remove = function(anchor) {
 		$nextTr = $nextTr.next();
 	}
 	this.count--;
+	this.notify();
 };
-
-RRAManager.prototype.validate = function(seconds) {
+rraManager.validate = function(seconds) {
 	if (seconds <= 0) {
 		alert('时间值必须大于零');
 		return false;
@@ -353,43 +356,126 @@ RRAManager.prototype.validate = function(seconds) {
 		return true;
 	}
 };
-
-RRAManager.prototype.refresh = function($tr) {
+rraManager.refresh = function($tr) {
 	createRRAByTableRow($tr).getRevisedRRA().save($tr);
+	this.notify();
 };
-
-RRAManager.prototype.getRRACount = function() {
+rraManager.getRRACount = function() {
 	return this.count;
 };
-
-function ClusterManager() {
-	this.index = 0;
-	this.listener=new Array();
-}
-
-ClusterManager.prototype.add = function() {
-	var tpl = parseTemplate("clusterTpl", {
-		'clusterName' : "cluster" + (++this.index)
+rraManager.getAverageRows = function() {
+	var sum = 0;
+	$('#rraConfig .content tbody tr').each(function() {
+		sum += parseInt($(this).find('td:eq(3)').text());
 	});
-	var $cluster = $($.trim(tpl));
-	$cluster.appendTo('#clusters');
-
-	for (var i in defaultMetrics) {
-		metricsGroupManager.add($cluster, defaultMetrics[i]);
+	return sum / this.count;
+};
+rraManager.loadDefault = function() {
+	for (var i = 0, len = config.rras.length; i < len; i++) {
+		var rra = config.rras[i];
+		rraManager.add(rra.interval, rra.period);
 	}
 };
 
-ClusterManager.prototype.remove = function(anchor) {
-	$(anchor).parent().remove();
+var metricsManager = OBSERVER.create();
+metricsManager.tpl = null;
+metricsManager.copy = function(anchor) {
+	var $tr = $(anchor).parent().parent();
+	this.tpl = {
+		'name' : $tr.find('input:text').eq(0).val(),
+		'desc' : $tr.find('input:text').eq(1).val()
+	};
+	$('button.pasteMetrics').stop(true).hide().fadeIn(300,function(){
+		$(this).stop(true).hide().fadeIn(300);
+	});
+	messageManager.showCopyInfo();
+};
+metricsManager.showPasteDialog = function(button) {
+	var num = this.getInputNumber('输入粘贴的指标数量');
+
+	for (var i = 0; i < num; i++) {
+		this.add($(button).parent().find('tbody'), this.tpl, i === 0);
+	}
+};
+metricsManager.paste = function($tbody, num) {
+	for (var i = 0; i < num; i++) {
+		this.add($tbody, this.tpl, i === 0);
+	}
+};
+metricsManager.getInputNumber = function(info) {
+	var num = prompt(info, 1);
+	if (num == null) {
+		return 0;
+	}
+	while (!num.match(/^\d+$/g)) {
+		num = prompt('输出格式错误，再次输入', 1);
+		if (num == null) {
+			return 0;
+		}
+	}
+	return parseInt(num);
+};
+metricsManager.showAddDialog = function(button) {
+	var num = this.getInputNumber('输入添加的指标数量');
+
+	for (var i = 0; i < num; i++) {
+		this.add(button, null, i === 0);
+	}
+};
+metricsManager.add = function(arg, metricsItem, select) {
+	if (('is' in arg)) {
+		if (arg.is('tbody')) {
+			var $tbody = arg;
+		} else {
+			var $tbody = arg.find('tbody');
+		}
+	} else {
+		var $tbody = $(arg).parent().find('tbody');
+	}
+
+	var params = {
+		"index" : $tbody.find('tr').size() + 1
+	};
+	if (metricsItem && ('name' in metricsItem) && ('desc' in metricsItem)) {
+		params.name = metricsItem.name;
+		params.desc = metricsItem.desc;
+	}
+
+	var $tpl = $($.trim(parseTemplate('metricsTpl', params)));
+	$tpl.appendTo($tbody);
+	if (select) {
+		var $firstText = $tpl.find('input:first');
+		if ($firstText.val() === '') {
+			$firstText.focus();
+		} else {
+			$firstText.select();
+		}
+	}
+
+	this.notify();
+};
+metricsManager.remove = function(anchor) {
+	OBSERVER.stop = true;
+
+	var $tr = $(anchor).parent().parent();
+	var $nextTr = $tr.next();
+	$tr.remove();
+	while ($nextTr.size() && $nextTr.is('tr')) {
+		var $td = $nextTr.find('td:first');
+		$td.text(parseInt($td.text()) - 1);
+		$nextTr = $nextTr.next();
+	}
+
+	OBSERVER.stop = false;
+	this.notify();
 };
 
-function MetricsGroupManager() {
-}
-
-MetricsGroupManager.prototype.add = function(anchor, metricsData) {
+var metricsGroupManager = OBSERVER.create();
+metricsGroupManager.add = function(anchor, metricsData) {
 	var groupName = (metricsData && metricsData.name) ? metricsData.name : "未命名";
 	var $tpl = $($.trim(parseTemplate('metricsGroupTpl', {
-		"groupName" : groupName
+		"groupName" : groupName,
+		"hidden" : metricsManager.tpl == null
 	})));
 	var $anchor = $(anchor);
 	var $div = $anchor.is('div') ? $anchor : $anchor.parent().parent();
@@ -404,13 +490,15 @@ MetricsGroupManager.prototype.add = function(anchor, metricsData) {
 		metricsManager.add($tpl);
 		$tpl.find("td input:first").focus();
 	}
-};
 
-MetricsGroupManager.prototype.remove = function(anchor) {
+	this.notify();
+};
+metricsGroupManager.remove = function(anchor) {
 	$(anchor).parent().remove();
-};
 
-MetricsGroupManager.prototype.changeName = function(span) {
+	this.notify();
+};
+metricsGroupManager.changeName = function(span) {
 	var name = span.innerHTML;
 	if (name.indexOf('<input') >= 0) {
 		return;
@@ -420,57 +508,95 @@ MetricsGroupManager.prototype.changeName = function(span) {
 	span.innerHTML = input;
 	$(span).find('input').select();
 };
-
-MetricsGroupManager.prototype.changeNameSubmit = function(input) {
+metricsGroupManager.changeNameSubmit = function(input) {
 	$(input).parent().text(input.value);
 };
 
-function MetricsManager() {
-}
+var clusterManager = OBSERVER.create();
+clusterManager.index = 0;
+clusterManager.add = function() {
+	OBSERVER.stop = true;
 
-MetricsManager.prototype.add = function(arg, metricsItem) {
-	if (arg.is && arg.is('div')) {
-		var $tbody = arg.find('tbody');
-	} else {
-		var $tbody = $(arg).parent().find('tbody');
+	var tpl = parseTemplate("clusterTpl", {
+		'clusterName' : "cluster" + (++this.index)
+	});
+	var $cluster = $($.trim(tpl));
+	$cluster.appendTo('#clusters');
+
+	for (var i = 0, len = config.metricsGroups.length; i < len; i++) {
+		metricsGroupManager.add($cluster, config.metricsGroups[i]);
 	}
 
-	var params = {
-		"index" : $tbody.find('tr').size() + 1
-	};
-	if (metricsItem && metricsItem.name && metricsItem.desc) {
-		params.name = metricsItem.name;
-		params.desc = metricsItem.desc;
-	}
-	$tbody.append(parseTemplate('metricsTpl', params));
-	if (!params.name) {
-		$tbody.find('tr:last').find('input:first').focus();
-	}
+	OBSERVER.stop = false;
+	this.notify();
+};
+clusterManager.remove = function(anchor) {
+	$(anchor).parent().remove();
+	this.notify();
 };
 
-MetricsManager.prototype.remove = function(anchor) {
-	var $tr = $(anchor).parent().parent();
-	var $nextTr = $tr.next();
-	$tr.remove();
-	while ($nextTr.size() && $nextTr.is('tr')) {
-		var $td = $nextTr.find('td:first');
-		$td.text(parseInt($td.text()) - 1);
-		$nextTr = $nextTr.next();
-	}
+var eventsManager = OBSERVER.create();
+eventsManager.bindEvent = function($element, eventName, func) {
+	$element.each(function() {
+		if (!this[eventName]) {
+			this[eventName] = func;
+		}
+	});
 };
-
-function decorateButton() {
-	var lightgreen = "rgb(71,164,71)";
-	var darkgreen = "rgb(61,144,61)";
-	$('button.green').hover(changeColor(darkgreen), changeColor(lightgreen));
-	var lightblue = "rgb(66,139,202)";
-	var darkblue = "rgb(56,119,172)";
-	$('button.blue').hover(changeColor(darkblue), changeColor(lightblue));
+eventsManager.updateButtonHover = function() {
 	function changeColor(color) {
 		return function() {
-			$(this).css('background-color', color);
+			this.style.backgroundColor = color;
 		};
 	};
+
+	var lightgreen = "rgb(71,164,71)";
+	var darkgreen = "rgb(61,144,61)";
+	this.bindEvent($('button.green'), 'onmouseover', changeColor(darkgreen));
+	this.bindEvent($('button.green'), 'onmouseout', changeColor(lightgreen));
+
+	var lightblue = "rgb(66,139,202)";
+	var darkblue = "rgb(56,119,172)";
+	this.bindEvent($('button.blue'), 'onmouseover', changeColor(darkblue));
+	this.bindEvent($('button.blue'), 'onmouseout', changeColor(lightblue));
+};
+eventsManager.update = function() {
+	this.updateButtonHover();
+	this.bindEvent($('button.addMetrics'), 'onclick', function() {
+		metricsManager.showAddDialog(this);
+	});
+	this.bindEvent($('button.pasteMetrics'), 'onclick', function() {
+		metricsManager.showPasteDialog(this);
+	});
+	this.bindEvent($('a.removeMetrics'), 'onclick', function() {
+		metricsManager.remove(this);
+	});
+	this.bindEvent($('a.copyMetrics'), 'onclick', function() {
+		metricsManager.copy(this);
+	});
+	this.bindEvent($('#addRRA'), 'onclick', function() {
+		rraManager.add();
+	});
+	this.bindEvent($('#addCluster'), 'onclick', function() {
+		clusterManager.add();
+	});
+	this.bindEvent($('#periodOk'), 'onclick', function() {
+		periodPicker.update();
+	});
+	this.bindEvent($('#periodCancel'), 'onclick', function() {
+		periodPicker.hide();
+	});
+};
+
+function bindObservers() {
+	rraManager.attach(cal);
+	rraManager.attach(eventsManager);
+	metricsManager.attach(cal);
+	metricsManager.attach(eventsManager);
+	metricsGroupManager.attach(cal);
+	metricsGroupManager.attach(eventsManager);
+	clusterManager.attach(cal);
+	clusterManager.attach(eventsManager);
 }
 
 function log(obj) {
@@ -482,3 +608,12 @@ function log(obj) {
 		console.log(obj);
 	}
 }
+
+OBSERVER.stop = true;
+clusterManager.add();
+rraManager.loadDefault();
+OBSERVER.stop = false;
+cal.update();
+eventsManager.update();
+bindObservers();
+rraManager.getAverageRows(); 

@@ -1,4 +1,4 @@
-div{
+div {
 	position: relative;
 }
 
@@ -33,8 +33,8 @@ div.cluster {
 	margin: 20px 0;
 }
 
-div.clusterTitle input{
-	width: 100px;	
+div.clusterTitle input {
+	width: 100px;
 }
 
 a.closeAnchor {
@@ -50,20 +50,34 @@ a.closeAnchor {
 	overflow: hidden;
 }
 
-a.smallClose {
-	background: url('lib/easyui/themes/default/images/tabs_icons.png') no-repeat -37px center;
-	width: 12px;
-	height: 12px;
+a.smallClose, a.copy {
+	width: 14px;
+	height: 14px;
 	display: block;
 	overflow: hidden;
+	background: no-repeat center;
+}
+
+a.smallClose {
+	background: url('lib/easyui/themes/default/images/tabs_icons.png') -37px;
+}
+
+a.copy {
+	background-image: url('lib/images/copy.gif');
 }
 
 div.metricsGroup > a.smallClose {
 	background-image: url('lib/images/white_tabs_icons.png');
 	position: absolute;
-	display: block;
 	z-index: 2;
 	right: 5px;
+	margin-top: 5px;
+}
+
+div.metricsGroup > a.copy {
+	position: absolute;
+	z-index: 2;
+	right: 30px;
 	margin-top: 5px;
 }
 
@@ -105,36 +119,35 @@ th {
 
 td.handle {
 	border: 0px;
+	padding-right: 0;
+}
+
+button.large {
+	padding: 6px 12px;
+	font-size: 16pt;
+}
+
+button.small {
+	padding: 4px 8px;
+	font-size: 12pt;
 }
 
 button.green, button.blue {
 	cursor: pointer;
+	-moz-binding
 	border: 1px solid transparent;
 	border-radius: 4px;
 	color: #fff;
 }
 
 button.green {
-	padding: 6px 12px;
-	font-size: 16pt;
 	background-color: #47a447;
 	border-color: #398439;
 }
 
 button.blue {
-	padding: 4px 8px;
-	font-size: 12pt;
 	background-color: #428bca;
 	border-color: #357ebd;
-}
-
-div#periodPicker button.green{
-	padding: 4px 8px;
-	font-size: 12pt;
-}
-
-div.metricsGroup button.blue {
-	font-size: 10pt;
 }
 
 div#handleRRA {
@@ -144,7 +157,7 @@ div#handleRRA {
 	width: 160px;
 }
 
-div#rraConfig{
+div#rraConfig {
 	width: 750px;
 }
 
@@ -152,32 +165,36 @@ div#rraConfig div.content {
 	min-height: 100px;
 }
 
-div#rraConfig input{
+div#rraConfig input {
 	width: 160px;
 }
 
-div#periodPicker{
+div#periodPicker {
 	position: absolute;
 	background-color: white;
-	border:1px solid black;
-	padding: 0px 10px;
+	border: 1px solid black;
+	padding: 10px;
 	z-index: 6;
 	display: none;
 }
 
-div#periodPicker div#label{
-	float: left;
-	margin: 0px 0 20px 5px;
+div#periodPicker td {
+	border: none;
+	text-align: right;
 }
 
-div#periodPicker div#label p{
-	margin: 25px 0;		
+div#periodPicker input {
+	width: 50px;
 }
 
-div#periodPicker div#slider{
-	margin:20px 10px 20px 50px;
-}
-
-div#periodPicker div#slider div{
-	margin: 20px 0;
+div#message {
+	position: absolute;
+	display: block;
+	background-color: #555555;
+	z-index: 4;
+	padding: 10px;
+	font-size: 12pt;
+	border-radius: 10px;
+	color: white;
+	display: none;
 }
