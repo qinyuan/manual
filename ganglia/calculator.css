@@ -16,12 +16,23 @@ div.bottom {
 }
 
 div.left {
+	width: 8%;
+	font-size: 10pt;
+	padding: 0 10px;
+}
+
+div.left p {
+	padding: 2px 0;
+	margin: 2px 0;
+}
+
+div.center {
 	padding: 10px;
 	font-size: 11pt;
 }
 
 div.right {
-	width: 30%;
+	width: 20%;
 	font-size: 100%;
 	padding: 0 10px;
 }
@@ -81,6 +92,22 @@ div.metricsGroup > a.copy {
 	margin-top: 5px;
 }
 
+div.metricsGroup td.index {
+	cursor: pointer;
+}
+
+div.metricsGroup td.name {
+	width: 100px;
+}
+
+div.metricsGroup tr.selected {
+	background-color: khaki;
+}
+
+div.metricsGroup td.desc {
+	width: 600px;
+}
+
 div.panel {
 	margin-bottom: 10px;
 }
@@ -120,19 +147,22 @@ th {
 td.handle {
 	border: 0px;
 	padding-right: 0;
+	background-color: white;
 }
 
 button.large {
 	padding: 6px 12px;
 	font-size: 16pt;
+	margin: 6px 12px;
 }
 
 button.small {
 	padding: 4px 8px;
 	font-size: 12pt;
+	margin: 4px 8px;
 }
 
-button.green, button.blue {
+button.green, button.blue, button.red {
 	cursor: pointer;
 	-moz-binding
 	border: 1px solid transparent;
@@ -145,6 +175,11 @@ button.green {
 	border-color: #398439;
 }
 
+button.red {
+	background-color: #d9534f;
+	border-color: #d43f3a;
+}
+
 button.blue {
 	background-color: #428bca;
 	border-color: #357ebd;
@@ -154,11 +189,11 @@ div#handleRRA {
 	position: absolute;
 	right: 30px;
 	top: 0;
-	width: 160px;
+	width: 200px;
 }
 
 div#rraConfig {
-	width: 750px;
+	width: 780px;
 }
 
 div#rraConfig div.content {
@@ -190,7 +225,7 @@ div#periodPicker input {
 div#message {
 	position: absolute;
 	display: block;
-	background-color: #555555;
+	background-color: purple;
 	z-index: 4;
 	padding: 10px;
 	font-size: 12pt;

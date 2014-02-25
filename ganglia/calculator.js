@@ -178,18 +178,32 @@ RRA.prototype.save = function($tr) {
 	$tr.find('td').eq(3).text(this.rows);
 };
 
-var messageManager={
-	$message:$('#message'),
-	showCopyInfo:function(){
-		this.$message.css({
-			left:0,
-			top:0	
-		});
-		this.$message.text('复制成功！').fadeIn(250);
-		setTimeout(1000,function(){
-			this.$message.hide(250);
-		});
-	}	
+var messageManager = {
+	$message : $('#message'),
+	showCopyInfo : function(anchor) {
+		var offset = $(anchor).offset();
+		offset.left = offset.left - 100;
+		var msg = this.$message;
+		msg.text('复制成功');
+		msg.css('display', 'block');
+		msg.offset(offset);
+		setTimeout(function() {
+			msg.css('display', 'none');
+		}, 1000);
+	},
+	getInputNumber : function(info) {
+		var num = prompt(info, 1);
+		if (num == null) {
+			return 0;
+		}
+		while (!num.match(/^\d+$/g)) {
+			num = prompt('输出格式错误，再次输入', 1);
+			if (num == null) {
+				return 0;
+			}
+		}
+		return parseInt(num);
+	}
 };
 
 var OBSERVER = {
@@ -216,6 +230,52 @@ var OBSERVER = {
 			}
 		};
 	}
+};
+
+var outlineManager = OBSERVER.create();
+outlineManager.update = function() {
+	var href = this.createHref;
+	var str = href('rra', '数据归档', 0);
+	var clusterIndex = 0;
+	$('div#clusters div.cluster').each(function() {
+		var clusterName = $(this).find('input.clusterName').val();
+		str += href('c' + clusterIndex, clusterName, 0);
+		var metricsIndex = 0;
+		$(this).find('div.metricsGroup div.title').each(function() {
+			var metricsName = $(this).find('span:first').text();
+			str += href('c' + clusterIndex + "m" + metricsIndex, metricsName, 1);
+			metricsIndex++;
+		});
+		clusterIndex++;
+	});
+	$('#outlineDiv').html(str).find('a').click(function() {
+		outlineManager.locate(this);
+	});
+};
+outlineManager.locate = function(anchor) {
+	var id = anchor.id.replace('outline_', '');
+	var $configDiv = $('#configDiv');
+	if (id === 'rra') {
+		$configDiv.scrollTop(0);
+	} else if (id.match(/^c\d+m\d$/g)) {
+		var clusterIndex = id.replace('c', '').replace(/m.*/, '');
+		var metricsIndex = id.replace(/.*m/, '');
+		var $cluster = $('div.cluster').eq(clusterIndex);
+		var metricsGroup = $cluster.find('div.metricsGroup').get(metricsIndex);
+		$configDiv.scrollTop(metricsGroup.offsetTop + 200);
+	} else if (id.match(/^c\d+$/g)) {
+		var clusterIndex = id.replace('c', '');
+		var cluster = $('div.cluster').get(clusterIndex);
+		$configDiv.scrollTop(cluster.offsetTop + 200);
+	}
+};
+outlineManager.createHref = function(id, text, level) {
+	var str = '<p>';
+	for (var i = 0; i < level; i++) {
+		str += '&nbsp;&nbsp;&nbsp;&nbsp;';
+	}
+	str += '<a href="javascript:void(0)" id="outline_' + id + '">' + text + '</a></p>';
+	return str;
 };
 
 var cal = OBSERVER.create();
@@ -382,41 +442,34 @@ metricsManager.tpl = null;
 metricsManager.copy = function(anchor) {
 	var $tr = $(anchor).parent().parent();
 	this.tpl = {
-		'name' : $tr.find('input:text').eq(0).val(),
-		'desc' : $tr.find('input:text').eq(1).val()
+		'name' : $tr.find('td.name').text(),
+		'desc' : $tr.find('td.desc').text()
 	};
-	$('button.pasteMetrics').stop(true).hide().fadeIn(300,function(){
+	$('button.pasteMetrics').stop(true).hide().fadeIn(300, function() {
 		$(this).stop(true).hide().fadeIn(300);
 	});
-	messageManager.showCopyInfo();
+	messageManager.showCopyInfo(anchor);
 };
 metricsManager.showPasteDialog = function(button) {
-	var num = this.getInputNumber('输入粘贴的指标数量');
+	var num = messageManager.getInputNumber('输入粘贴数量');
 
+	OBSERVER.stop = true;
+	var $tbody = $(button).parent().find('tbody');
 	for (var i = 0; i < num; i++) {
-		this.add($(button).parent().find('tbody'), this.tpl, i === 0);
+		this.add($tbody, this.tpl, i === 0);
 	}
+	OBSERVER.stop = false;
+
+	this.notify();
 };
 metricsManager.paste = function($tbody, num) {
 	for (var i = 0; i < num; i++) {
 		this.add($tbody, this.tpl, i === 0);
 	}
 };
-metricsManager.getInputNumber = function(info) {
-	var num = prompt(info, 1);
-	if (num == null) {
-		return 0;
-	}
-	while (!num.match(/^\d+$/g)) {
-		num = prompt('输出格式错误，再次输入', 1);
-		if (num == null) {
-			return 0;
-		}
-	}
-	return parseInt(num);
-};
+
 metricsManager.showAddDialog = function(button) {
-	var num = this.getInputNumber('输入添加的指标数量');
+	var num = messageManager.getInputNumber('输入添加的指标数量');
 
 	for (var i = 0; i < num; i++) {
 		this.add(button, null, i === 0);
@@ -471,6 +524,28 @@ metricsManager.remove = function(anchor) {
 };
 
 var metricsGroupManager = OBSERVER.create();
+metricsGroupManager.$tpl = null;
+metricsGroupManager.copy = function(anchor) {
+	$tpl = $(anchor).parent().clone(true);
+	$('button.pasteMetricsGroup').stop(true).hide().fadeIn(300, function() {
+		$(this).stop(true).hide().fadeIn(300);
+	});
+	messageManager.showCopyInfo(anchor);
+};
+metricsGroupManager.showPasteDialog = function(button) {
+	var num = messageManager.getInputNumber('输入粘贴数量');
+	var $div = $(button).parent().parent();
+	for (var i = 0; i < num; i++) {
+		if (i === 0) {
+			$div.append($tpl);
+		} else {
+			$div.append($tpl.clone());
+		}
+	}
+	$tpl.find('input:text').eq(0).focus();
+
+	this.notify();
+};
 metricsGroupManager.add = function(anchor, metricsData) {
 	var groupName = (metricsData && metricsData.name) ? metricsData.name : "未命名";
 	var $tpl = $($.trim(parseTemplate('metricsGroupTpl', {
@@ -498,18 +573,42 @@ metricsGroupManager.remove = function(anchor) {
 
 	this.notify();
 };
-metricsGroupManager.changeName = function(span) {
-	var name = span.innerHTML;
-	if (name.indexOf('<input') >= 0) {
-		return;
+
+var textEditor = OBSERVER.create();
+textEditor.latestElement = null;
+textEditor.latestValue = null;
+textEditor.edit = function(element) {
+	if (element !== this.latestElement) {
+		this.latestElement = element;
+		var $element = $(element);
+		this.latestValue = $element.text();
+		$element.html(this.createInputText()).children('input').select();
 	}
-	var input = '<input type="text" value="' + name;
-	input += '" onblur="return metricsGroupManager.changeNameSubmit(this);" />';
-	span.innerHTML = input;
-	$(span).find('input').select();
 };
-metricsGroupManager.changeNameSubmit = function(input) {
-	$(input).parent().text(input.value);
+textEditor.createInputText = function() {
+	var str = '<input type="text" value="' + this.latestValue + '"';
+	var width = $(this.latestElement).css('width');
+	if (width) {
+		str += ' style="width:' + (parseInt(width.replace('px')) - 3) + 'px;"';
+	}
+	str += ' />';
+	return $(str).blur(function() {
+		textEditor.submitChange(this);
+	}).keyup(function(event) {
+		if (event.keyCode === 13) {
+			textEditor.submitChange(this);
+		}
+	});
+};
+textEditor.submitChange = function(input) {
+	var $input = $(input);
+	var text = $.trim($input.val());
+	$input.parent().html((text === '' ? this.latestValue : text));
+
+	this.latestElement = null;
+	this.latestValue = null;
+
+	this.notify();
 };
 
 var clusterManager = OBSERVER.create();
@@ -518,7 +617,8 @@ clusterManager.add = function() {
 	OBSERVER.stop = true;
 
 	var tpl = parseTemplate("clusterTpl", {
-		'clusterName' : "cluster" + (++this.index)
+		'clusterName' : "cluster" + (++this.index),
+		'hidden' : metricsGroupManager.$tpl === null
 	});
 	var $cluster = $($.trim(tpl));
 	$cluster.appendTo('#clusters');
@@ -532,6 +632,100 @@ clusterManager.add = function() {
 };
 clusterManager.remove = function(anchor) {
 	$(anchor).parent().remove();
+	this.notify();
+};
+
+var multiSelector = OBSERVER.create();
+multiSelector.$selectedTrs = [];
+multiSelector.lastTd = null;
+multiSelector.lastTBody = null;
+multiSelector.select = function(td, event) {
+	var $tr = $(td).parent();
+	var tbody = $tr.parent().get(0);
+	if (event.ctrlKey && this.lastTBody === tbody) {
+		if ($tr.hasClass('selected')) {
+			this.unSelectTr($tr);
+		} else {
+			this.selectOne($tr);
+		}
+	} else if (event.shiftKey && this.lastTBody === tbody) {
+		var startTr = $(td).parent().get(0);
+		var endTr = $(this.lastTd).parent().get(0);
+		var $trs = this.getInBetweenTrs(startTr, endTr);
+		for (var i = 0, len = $trs.length; i < len; i++) {
+			this.selectOne($trs[i]);
+		}
+	} else {
+		this.unSelectAll();
+		this.selectOne($tr);
+	}
+	this.lastTd = td;
+	this.lastTBody = tbody;
+};
+multiSelector.getInBetweenTrs = function(startTr, endTr) {
+	var $tbody = $(startTr).parent();
+	var $trs = [];
+	var start = false;
+	$tbody.find('tr').each(function() {
+		if (this === startTr || this === endTr) {
+			if (start) {
+				start = false;
+				$trs.push($(this));
+			} else {
+				start = true;
+			}
+		}
+		if (start === true) {
+			$trs.push($(this));
+		}
+	});
+	return $trs;
+};
+multiSelector.unSelectTr = function($tr) {
+	$tr.removeClass('selected');
+	var newTrs = [];
+	$.each(this.$selectedTrs, function(index, value) {
+		if (value.get(0) !== $tr.get(0)) {
+			newTrs.push(value);
+		}
+	});
+	this.$selectedTrs = newTrs;
+	if (newTrs.length === 0) {
+		this.getRemoveMetricsButton($tr).hide();
+	}
+};
+multiSelector.selectOne = function($tr) {
+	$tr.addClass('selected');
+	this.$selectedTrs.push($tr);
+	this.getRemoveMetricsButton($tr).show();
+};
+multiSelector.getRemoveMetricsButton = function($tr) {
+	var $tbody = $tr.parent();
+	var $table = $tbody.parent();
+	var $div = $table.parent();
+	return $div.find('button.removeMetrics');
+};
+multiSelector.unSelectAll = function() {
+	$.each(this.$selectedTrs, function(index, value) {
+		value.removeClass('selected');
+	});
+	if (this.$selectedTrs.length > 1) {
+		this.getRemoveMetricsButton(this.$selectedTrs[0]).hide();
+	}
+	this.$selectedTrs = [];
+};
+multiSelector.removeSelectedTrs = function(button) {
+	var anchors = [];
+	$(button).parent().find('tr.selected').each(function() {
+		anchors.push($(this).find('a.removeMetrics').get(0));
+	});
+	this.unSelectAll();
+
+	OBSERVER.stop = true;
+	for (var i = anchors.length - 1; i >= 0; i--) {
+		metricsManager.remove(anchors[i]);
+	}
+	OBSERVER.stop = false;
 	this.notify();
 };
 
@@ -559,6 +753,11 @@ eventsManager.updateButtonHover = function() {
 	var darkblue = "rgb(56,119,172)";
 	this.bindEvent($('button.blue'), 'onmouseover', changeColor(darkblue));
 	this.bindEvent($('button.blue'), 'onmouseout', changeColor(lightblue));
+
+	var lightRed = "rgb(217,83,79)";
+	var darkRed = "rgb(190,73,69)";
+	this.bindEvent($('button.red'), 'onmouseover', changeColor(darkRed));
+	this.bindEvent($('button.red'), 'onmouseout', changeColor(lightRed));
 };
 eventsManager.update = function() {
 	this.updateButtonHover();
@@ -568,11 +767,23 @@ eventsManager.update = function() {
 	this.bindEvent($('button.pasteMetrics'), 'onclick', function() {
 		metricsManager.showPasteDialog(this);
 	});
+	this.bindEvent($('button.removeMetrics'), 'onclick', function() {
+		multiSelector.removeSelectedTrs(this);
+	});
+	this.bindEvent($('button.addMetricsGroup'), 'onclick', function() {
+		metricsGroupManager.add(this);
+	});
+	this.bindEvent($('button.pasteMetricsGroup'), 'onclick', function() {
+		metricsGroupManager.showPasteDialog(this);
+	});
 	this.bindEvent($('a.removeMetrics'), 'onclick', function() {
 		metricsManager.remove(this);
 	});
 	this.bindEvent($('a.copyMetrics'), 'onclick', function() {
 		metricsManager.copy(this);
+	});
+	this.bindEvent($('a.copyMetricsGroup'), 'onclick', function() {
+		metricsGroupManager.copy(this);
 	});
 	this.bindEvent($('#addRRA'), 'onclick', function() {
 		rraManager.add();
@@ -586,17 +797,38 @@ eventsManager.update = function() {
 	this.bindEvent($('#periodCancel'), 'onclick', function() {
 		periodPicker.hide();
 	});
+	this.bindEvent($('div.metricsGroup div.title span'), 'onclick', function() {
+		textEditor.edit(this);
+	});
+	this.bindEvent($('div.metricsGroup div.content td.name'), 'onclick', function() {
+		textEditor.edit(this);
+	});
+	this.bindEvent($('div.metricsGroup div.content td.desc'), 'onclick', function() {
+		textEditor.edit(this);
+	});
+	this.bindEvent($('div.metricsGroup div.content td.index'), 'onclick', function(event) {
+		multiSelector.select(this, event);
+	});
 };
 
 function bindObservers() {
 	rraManager.attach(cal);
 	rraManager.attach(eventsManager);
+
 	metricsManager.attach(cal);
 	metricsManager.attach(eventsManager);
+
 	metricsGroupManager.attach(cal);
 	metricsGroupManager.attach(eventsManager);
+	metricsGroupManager.attach(outlineManager);
+
 	clusterManager.attach(cal);
 	clusterManager.attach(eventsManager);
+	clusterManager.attach(outlineManager);
+
+	textEditor.attach(outlineManager);
+
+	multiSelector.attach(cal);
 }
 
 function log(obj) {
@@ -613,7 +845,9 @@ OBSERVER.stop = true;
 clusterManager.add();
 rraManager.loadDefault();
 OBSERVER.stop = false;
+
 cal.update();
 eventsManager.update();
+outlineManager.update();
+
 bindObservers();
-rraManager.getAverageRows(); 

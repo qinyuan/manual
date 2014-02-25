@@ -17,7 +17,10 @@ RRD文件总量计算器
 <div class="bottom" data-options="region:'south',border:false">
 </div>
 
-<div class="left" id="configDiv" data-options="region:'center',split:true,title:'配置参数'">
+<div class="left" id="outlineDiv" data-options="region:'west',split:true,title:'大纲'">
+</div>
+
+<div class="center" id="configDiv" data-options="region:'center',split:true,title:'配置参数'">
 
 
 <div id="rraConfig" class="panel">
@@ -37,7 +40,7 @@ RRD文件总量计算器
 		</table>
 		<div id="handleRRA">
 			<button id="addRRA" type="button" class="green large">添加数据归档</button>
-			<br><br>
+			<br>
 			如果对数据归档不是很理解，点击<a href="introductRRA.html" target="_blank">这里</a>
 		</div>
 	</div>
@@ -119,8 +122,9 @@ RRD文件总量计算器
 			&nbsp;&nbsp;&nbsp;
 			指标数量：<input type="text" class="metricsCount" value="0" readonly="readonly" />	
 			&nbsp;&nbsp;&nbsp;
-			<button class="blue addMetricsGroup small" 
-				onclick="return metricsGroupManager.add(this);">添加指标组</button>
+			<button class="blue addMetricsGroup small">添加指标组</button>
+			<button class="green pasteMetricsGroup small"
+				{if $hidden}style="display:none;"{/if}>粘贴指标组</button>
 		</div>
 	</div>
 </script>
@@ -132,8 +136,7 @@ RRD文件总量计算器
 			onclick="return metricsGroupManager.remove(this);"> </a>
 		<div class="title blue">
 			指标组：
-			<span 
-			onclick="return metricsGroupManager.changeName(this);">{$groupName}</span>
+			<span style="width: 200px;">{$groupName}</span>
 		</div>
 		<div class="content">
 			<table>
@@ -146,15 +149,17 @@ RRD文件总量计算器
 			&nbsp;&nbsp;&nbsp;&nbsp;
 			<button class="green pasteMetrics small" 
 				{if $hidden} style="display:none;"{/if}>粘贴指标</button>
+			&nbsp;&nbsp;&nbsp;&nbsp;
+			<button class="red removeMetrics small" style="display:none;">刪除指标</button>	
 		</div>
 	</div>
 </script>
 
 <script id="metricsTpl" type="text/x-jsmart-tmpl">
 	<tr>
-		<td>{$index}</td>
-		<td><input type="text" value="{$name}" style="width:100px;" /></td>
-		<td><input type="text" value="{$desc}" title="{$desc}" style="width:620px;" /></td>
+		<td class="index">{$index}</td>
+		<td class="name">{$name}</td>
+		<td class="desc">{$desc}</td>
 		<td class="handle">
 			<a href="javascript:void(0)" class="smallClose removeMetrics" title="删除"> </a>
 		</td>
