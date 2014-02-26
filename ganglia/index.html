@@ -7,15 +7,6 @@
 	<link rel="stylesheet" href="lib/hightlight/styles/default.css" />
 	<link rel="stylesheet" href="lib/easyui/themes/default/easyui.css" />
 	<link rel="stylesheet" href="lib/manual.css" />
-	<link rel="stylesheet" href="calculator.css" />
-	<script src="lib/hightlight/highlight.pack.js"></script>
-	<script src="lib/jquery.min.js"></script>
-	<script src="lib/easyui/jquery.easyui.min.js"></script>
-	<script>
-		hljs.initHighlightingOnLoad();
-	</script>
-	<script src="lib/manual.js"></script>
-	<script src="calculator.js"></script>
 </head>
 
 <body class="easyui-layout">
@@ -32,8 +23,8 @@ Ganglia使用指南
 
 <h2>一、Ganglia的安装</h2>
 
-<h3>1.1 使用apt-get方式安装</h3>
-<p>安装ganglia之前需要先安装apache与PHP。使用apt-get方式安装时，运行如下代码命令：</p>
+<h3>1.1 使用apt-get安装(以Ubuntu为例)</h3>
+<p>在Ubuntu下使用apt-get安装比较简单，其中在安装ganglia之前需要先安装apache与PHP。在Ubuntu下使用如下命令即可完成ganglia的安装：</p>
 <pre><code>
 sudo apt-get install apache2 php5 ganglia*
 
@@ -55,16 +46,61 @@ sudo service /etc/init.d/apache2 restart
 
 
 
-<h3>1.2 使用编译安装</h3>
+<h3>1.2 使用编译安装(以CentOS为例)</h3>
 <p>
 ganglia安装包的下载地址为：<a target="_blank" href="http://sourceforge.net/projects/ganglia/files/ganglia%20monitoring%20core/">http://sourceforge.net/projects/ganglia/files/ganglia%20monitoring%20core/</a>。<br>
-在安装ganglia之前需要使用如下命令安装依赖包：
-</p>
+在安装ganglia之前需要使用如下命令安装依赖软件：
 <pre><code>
-sudo apt-get install libapr1-dev
+yum install gcc telnet httpd php apr-devel expat-devel pcre-devel zlib-devel rrdtool rrdtool-devel
 
 </code></pre>
-<p>另外，还需要下载并安装confuse-2.7.tar.gz。</p>
+</p>
+<p>
+另外，还需要下载并安装confuse-2.7.tar.gz(confuse不能通过yum安装)。安装confuse的命令为：
+<pre><code>
+tar -zxvf confuse-2.7.tar.gz
+cd confuse-2.7
+./configure
+make
+make install
+
+</code></pre>
+</p>
+
+<p>
+安装好依赖软件之后，可以下载并安装ganglia。安装ganglia的命令为：
+<pre><code>
+tar -zxvf ganglia-3.6.0.tar.gz
+cd ganglia-3.6.0
+./configure --prefix=/usr/local/ganglia --with-gmetad --sysconfdir=/etc/ganglia
+make
+make install
+
+# 复制启动目录到对应目录
+cp gmetad/gmetad.init /etc/rc.d/init.d/gmetad
+cp gmond/gmond.init /etc/rc.d/init.d/gmond
+
+ln -s /usr/local/ganglia/sbin/gmetad /usr/sbin/gmetad
+ln -s /usr/local/ganglia/sbin/gmond /usr/sbin/gmond
+
+chkconfig --add gmetad
+chkconfig --add gmond 
+chkconfig --level 345 gmetad on
+chkconfig --level 345 gmond on
+
+# 生成默认配置文件
+gmond -t | tee /usr/local/ganglia-3.6.0/etc/gmond.conf
+
+# 创建rrds数据文件存放目录
+mkdir -p /var/lib/ganglia/rrds
+chown nobody:nobody /var/lib/ganglia/rrds
+
+# 开启gmetad与gmond服务
+service gmetad start
+service gmond  start
+
+</code></pre>
+</p>
 
 
 
@@ -1123,67 +1159,16 @@ cpu_idle.rrd的DS个数为2，RRA个数为5，单个RRA的行数为(244*4+374)/5
 </p>
 
 <h3>4.6 rrd文件总量计算器</h3>
-<div id="rrdCalculator">
-  <div class="panel">
-    <div class="panelTitle">RRD相关配置</div>
-    <div class="panelContent">
-      <p>
-        RRA(环状归档)个数：<input type="text" id="calRra" value="5" />
-        &nbsp;&nbsp;&nbsp;&nbsp;
-        单个RRA的行数：<input type="text" id="calRows" value="270" />
-        &nbsp;&nbsp;&nbsp;&nbsp;
-        指标数量：<input type="text" id="calMetricsSize" value="28" />
-      </p>
-      <table id="clusterConfig">
-        <tr><th>集群名</th><th>主机数量</th><th> </th></tr>
-      </table>
-      <button id="addClusterConfigButton">添加集群</button>
-    </div>
-  </div>
-  <div class="panel" id="calResult">
-    <div class="panelTitle">计算结果</div>
-    <div class="panelContent">
-      <fieldset>
-        <legend>主机目录</legend>
-        <p>
-          目录数：
-          <input type="text" id="hostFolderCount" readonly="readonly" />
-          &nbsp;&nbsp;&nbsp;&nbsp;
-        </p>
-        <p>
-          单个rrd大小：
-          <input type="text" id="singleRrdInHostFolder" readonly="readonly" /> byte
-        </p>
-        <p>
-          总大小：
-          <input type="text" id="hostFolderSize" readonly="readonly" /> byte
-        </p>
-      </fieldset>
-      <fieldset>
-        <legend>__SummaryInfo__目录</legend>
-        <p>
-          目录数：
-          <input type="text" id="summaryFolderCount" readonly="readonly" />
-          &nbsp;&nbsp;&nbsp;&nbsp;
-        </p>
-        <p>
-          单个rrd大小：
-          <input type="text" id="singleRrdInSummaryFolder" readonly="readonly" /> byte
-        </p>
-        <p>
-          总大小：
-          <input type="text" id="summaryFolderSize" readonly="readonly" /> byte
-        </p>
-      </fieldset>
-      <div id="calResultSummary">
-        Ganglia的rrd文件总大小：
-        <input type="text" id="calTotalSize" readonly="readonly" />
-      </div>
-      
-    </div>
-  </div>
+<p>
+这里提供了一个快速计算rrd文件总量的工具：<a href="calculator.html" target="_blank">rrd总量计算器</a>。只要在上面设置好配置参数，就能快速计算出对应的RRD文件占用的磁盘大小。
+</p>
+	
+
 
 </div>
-
 </body>
+<script src="lib/hightlight/highlight.pack.js"></script>
+<script src="lib/jquery.min.js"></script>
+<script src="lib/easyui/jquery.easyui.min.js"></script>
+<script src="lib/manual.js"></script>
 </html>

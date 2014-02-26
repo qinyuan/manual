@@ -1,71 +1,62 @@
-window.onload = function() {
-	var headlines = getHeadlines();
-	var catalogueHtml = createCatalogueHtml(headlines);
-	$('#catalogueDiv').get(0).innerHTML = catalogueHtml;
-	persistScroll('contentDiv');
-	persistScroll('catalogueDiv');
+function persistScroll(elementId) {
+	var scrollRecordKey = this.location.href.toString() + elementId;
+	var storage = window.localStorage;
+	var $target = $('#' + elementId);
 
-	function persistScroll(elementId) {
-		var scrollRecordKey = this.location.href.toString() + elementId;
-		var storage = window.localStorage;
-		var $target = $('#' + elementId);
-
-		if (storage[scrollRecordKey]) {
-			$target.scrollTop(storage[scrollRecordKey]);
-		}
-		$target.scroll(function() {
-			storage[scrollRecordKey] = $target.scrollTop();
-		});
+	if (storage[scrollRecordKey]) {
+		$target.scrollTop(storage[scrollRecordKey]);
 	}
+	$target.scroll(function() {
+		storage[scrollRecordKey] = $target.scrollTop();
+	});
+}
 
-	function isHeadline(node) {
-		if (!node.tagName.match(/^H\d$/g)) {
-			return false;
-		}
-		var className = node.className;
-		if (className && className == 'notInCatalogue') {
-			return false;
-		}
-		return true;
+function isHeadline(node) {
+	if (!node.tagName.match(/^H\d$/g)) {
+		return false;
 	}
-
-	function getHeadlines() {
-		var arr = new Array();
-		var builder = new HeadlineNodeBuilder();
-		$('#contentDiv').children().each(function() {
-			if (this.tagName[0] === 'H') {
-				arr.push(builder.build(this));
-			}
-		});
-
-		var baseLevel = getBaseLevelByHeadlines(arr);
-		for (var i in arr) {
-			arr[i].setBaseLevel(baseLevel);
-		}
-		return arr;
+	var className = node.className;
+	if (className && className == 'notInCatalogue') {
+		return false;
 	}
+	return true;
+}
 
-	function getBaseLevelByHeadlines(headlines) {
-		var baseLevel = 9999;
-		for (var i in headlines) {
-			var headline = headlines[i];
-			if (baseLevel > headline.level) {
-				baseLevel = headline.level;
-			}
+function getHeadlines() {
+	var arr = new Array();
+	var builder = new HeadlineNodeBuilder();
+	$('#contentDiv').children().each(function() {
+		if (this.tagName[0] === 'H') {
+			arr.push(builder.build(this));
 		}
-		return baseLevel;
-	}
+	});
 
-	function createCatalogueHtml(headlines) {
-		var text = "";
-		for (var i in headlines) {
-			var headline = headlines[i];
-			text += headline.getText() + '\n';
+	var baseLevel = getBaseLevelByHeadlines(arr);
+	for (var i in arr) {
+		arr[i].setBaseLevel(baseLevel);
+	}
+	return arr;
+}
+
+function getBaseLevelByHeadlines(headlines) {
+	var baseLevel = 9999;
+	for (var i in headlines) {
+		var headline = headlines[i];
+		if (baseLevel > headline.level) {
+			baseLevel = headline.level;
 		}
-		return text;
 	}
+	return baseLevel;
+}
 
-};
+function createCatalogueHtml(headlines) {
+	var text = "";
+	for (var i in headlines) {
+		var headline = headlines[i];
+		text += headline.getText() + '\n';
+	}
+	return text;
+}
 
 function catalogueClick(anchor) {
 	var href = anchor.href.toString().replace(/.*\#/g, "");
@@ -111,7 +102,7 @@ HeadlineNodeBuilder.prototype.build = function(node) {
 };
 
 function debug(obj, onlyKey) {
-	if ( typeof obj === "string" || typeof obj==="number") {
+	if ( typeof obj === "string" || typeof obj === "number") {
 		console.log(obj);
 		return;
 	}
@@ -123,3 +114,9 @@ function debug(obj, onlyKey) {
 		}
 	}
 }
+
+var headlines = getHeadlines();
+var catalogueHtml = createCatalogueHtml(headlines);
+$('#catalogueDiv').get(0).innerHTML = catalogueHtml;
+persistScroll('contentDiv');
+persistScroll('catalogueDiv');
