@@ -1162,7 +1162,173 @@ cpu_idle.rrd的DS个数为2，RRA个数为5，单个RRA的行数为(244*4+374)/5
 <p>
 这里提供了一个快速计算rrd文件总量的工具：<a href="calculator.html" target="_blank">rrd总量计算器</a>。只要在上面设置好配置参数，就能快速计算出对应的RRD文件占用的磁盘大小。
 </p>
-	
+
+<h2>五、用Python安装ganglia扩展模块</h2>
+<h3>5.1 基本步骤(以Ubuntu为例)</h3>
+<h4>5.1.1 配置前的检查</h4>
+<p>
+如果Ganglia使用默认方式正常安装，则会存在/usr/lib/ganglia目录（如果是64位操作系统，会存在/usr/lib64/ganglia目录。该目录在会有一个modpython.so文件。
+</p>
+
+<h4>5.1.2 启用Python扩展</h4>
+<p>
+查看一下是否存在/etc/ganglia/conf.d目录和/usr/lib/ganglia/python_modules目录，如果没有，则需要使用命令创建这两个目录：
+<pre><code>
+sudo mkdir -p /etc/ganglia/conf.d
+sudo mkdir -p /usr/lib/ganglia/python_modules
+
+</code></pre>
+</p>
+
+<p>
+在/etc/ganglia/conf.d/目录下创建配置文件modpython.conf。在该文件中输入如下内容：
+<pre><code>
+modules {
+  module {
+     name = "python_module"
+     path = "/usr/lib/ganglia/modpython.so"
+     params = "/usr/lib/ganglia/python_modules"
+  }
+}
+
+include('/etc/ganglia/conf.d/*.pyconf')
+
+</code></pre>
+如果是64位操作系统，则输入如下内容：
+<pre><code>
+modules {
+  module {
+     name = "python_module"
+     path = "/usr/lib64/ganglia/modpython.so"
+     params = "/usr/lib64/ganglia/python_modules"
+  }
+}
+
+include('/etc/ganglia/conf.d/*.pyconf')
+
+</code></pre>
+</p>
+
+
+<h4>5.1.3 编写第一个python脚本</h4>
+<p>
+在ganglia的安装包中，有一个example.py作为作为示例。可以将这个文件复制到/usr/lib/ganglia/python_modules目录下。如果找不到这个文件，可以在/usr/lib/ganglia/python_modules目录下创建一个example.py文件，输入如下内容：
+<pre><code>
+import random
+descriptors = list()
+Random_Max = 50
+Constant_Value = 50
+
+def Random_Numbers(name):
+    '''Return a random number.'''
+    global Random_Max
+    return int(random.uniform(0,Random_Max))
+
+def Constant_Number(name):
+    '''Return a constant number.'''
+    global Constant_Value
+    return int(Constant_Value)
+
+def metric_init(params):
+    '''Initialize the random number generator and create the
+    metric definition dictionary object for each metric.'''
+    global descriptors
+    global Random_Max
+    global Constant_Value
+    random.seed()
+    
+    print '[pyexample] Received the following parameters'
+    print params
+    
+    if 'RandomMax' in params:
+        Random_Max = int(params['RandomMax'])
+    if 'ConstantValue' in params:
+        Constant_Value = int(params['ConstantValue'])
+    
+    d1 = {'name': 'PyRandom_Numbers',
+        'call_back': Random_Numbers,
+        'time_max': 90,
+        'value_type': 'uint',
+        'units': 'N',
+        'slope': 'both',
+        'format': '%u',
+        'description': 'Example module metric (random numbers)',
+        'groups': 'example,random'}
+
+    d2 = {'name': 'PyConstant_Number',
+        'call_back': Constant_Number,
+        'time_max': 90,
+        'value_type': 'uint',
+        'units': 'N',
+        'slope': 'zero',
+        'format': '%hu',
+        'description': 'Example module metric (constant number)'}
+
+    descriptors = [d1,d2]
+    return descriptors
+
+def metric_cleanup():
+    '''Clean up the metric module.'''
+    pass
+
+#This code is for debugging and unit testing    
+if __name__ == '__main__':
+    params = {'RandomMax': '500',
+        'ConstantValue': '322'}
+    metric_init(params)
+    for d in descriptors:
+        v = d['call_back'](d['name'])
+        print 'value for %s is %u' % (d['name'],  v)
+
+</code></pre>
+</p>
+
+<h4>5.1.4 配置添加的python模块</h4>
+<p>
+在/etc/ganglia/conf.d/目录下创建配置example.pyconf配置文件，在配置文件中输入如下内容：
+<pre><code>
+modules{
+  module {
+    name = "example"
+    language = "python"
+    param RandomMax {
+      value = 600
+    }
+    param ConstantValue {
+      value = 112
+    }
+  }
+}
+
+collection_group {
+  collect_every = 10
+  time_threshold = 50
+  metric {
+    name = "PyRandom_Numbers"  # 要显示的metric，与example.py中的d1名字对应
+    title = "Random"           # metric在网页上显示的标题
+    value_threshold = 70
+  }
+  metric {
+    name = "PyConstant_Number" # 要显示的metric，与example.py中的d2名字对应
+    title = "Constant"         # metric在网页上显示的标题
+    value_threshold = 70
+  }
+}
+
+</code></pre>
+</p>
+
+<p>
+接下来使用如下命令重启gmond：
+<pre><code>
+sudo service ganglia-monitor restart
+
+</code></pre>
+</p>
+
+<p>
+进入到/var/lib/ganglia/rrds/__SummaryInfo__目录下，可以看到目录下有PyConstant_Number.rrd文件与PyRandom_Numbers.rrd文件。接下来就可以配置gweb展示这两个rrd文件中的数据。具体配置过程参见gweb的配置。
+</p>
 
 
 </div>

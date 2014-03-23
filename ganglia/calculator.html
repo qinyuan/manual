@@ -53,7 +53,9 @@ RRD文件总量计算器
 
 
 <div class="right" id="resultDiv" data-options="region:'east',split:'true',title:'计算结果'">
-	<h2 style="color: red;">占用磁盘总量：<span id="totalSpace">0B</span></h2>
+	<h3 style="color: red;">
+        占用磁盘总量：<span id="totalSpace">0B</span>
+    </h3>
 	<div id="resultDetails">
 	</div>
 </div>
@@ -189,11 +191,12 @@ RRD文件总量计算器
 <script id="config" type="text/json">
 	{
 		rras:[
-			{"interval":15,"period":15*244},
-			{"interval":15*24,"period":15*24*244},
-			{"interval":15*168,"period":15*168*244},
-			{"interval":15*672,"period":15*672*244},
-			{"interval":15*5760,"period":15*5760*374}
+			{"interval":15,"period":3600*5},
+			{"interval":60,"period":(24+18)*3600},
+			{"interval":600,"period":240*3600},
+			{"interval":3600,"period":110*24*3600},
+			{"interval":6*3600,"period":415*24*3600},
+			{"interval":24*3600,"period":6*365*24*3600}
 		],
 		"metricsGroups":[
 			{

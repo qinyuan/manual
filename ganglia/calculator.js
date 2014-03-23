@@ -272,7 +272,7 @@ outlineManager.locate = function(anchor) {
 outlineManager.createHref = function(id, text, level) {
 	var str = '<p>';
 	for (var i = 0; i < level; i++) {
-		str += '&nbsp;&nbsp;&nbsp;&nbsp;';
+		str += '&nbsp;&nbsp;';
 	}
 	str += '<a href="javascript:void(0)" id="outline_' + id + '">' + text + '</a></p>';
 	return str;
