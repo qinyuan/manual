@@ -51,7 +51,7 @@ sudo service /etc/init.d/apache2 restart
 ganglia安装包的下载地址为：<a target="_blank" href="http://sourceforge.net/projects/ganglia/files/ganglia%20monitoring%20core/">http://sourceforge.net/projects/ganglia/files/ganglia%20monitoring%20core/</a>。<br>
 在安装ganglia之前需要使用如下命令安装依赖软件：
 <pre><code>
-yum install gcc telnet httpd php apr-devel expat-devel pcre-devel zlib-devel rrdtool rrdtool-devel
+yum install gcc telnet httpd php apr-devel expat-devel pcre-devel zlib-devel rrdtool rrdtool-devel python-devel
 
 </code></pre>
 </p>
@@ -72,7 +72,7 @@ make install
 <pre><code>
 tar -zxvf ganglia-3.6.0.tar.gz
 cd ganglia-3.6.0
-./configure --prefix=/usr/local/ganglia --with-gmetad --sysconfdir=/etc/ganglia
+./configure --with-gmetad --sysconfdir=/etc/ganglia --enable-perl
 make
 make install
 
@@ -80,16 +80,11 @@ make install
 cp gmetad/gmetad.init /etc/rc.d/init.d/gmetad
 cp gmond/gmond.init /etc/rc.d/init.d/gmond
 
-ln -s /usr/local/ganglia/sbin/gmetad /usr/sbin/gmetad
-ln -s /usr/local/ganglia/sbin/gmond /usr/sbin/gmond
-
-chkconfig --add gmetad
-chkconfig --add gmond 
-chkconfig --level 345 gmetad on
-chkconfig --level 345 gmond on
+chkconfig gmond on
+chkconfig gmetad on
 
 # 生成默认配置文件
-gmond -t | tee /usr/local/ganglia-3.6.0/etc/gmond.conf
+gmond -t > /etc/ganglia/gmond.conf
 
 # 创建rrds数据文件存放目录
 mkdir -p /var/lib/ganglia/rrds
@@ -602,58 +597,51 @@ return ($view_elements);
 与json不同，使用PHP文件配置可以实现更复杂的配置。当然，PHP文件配置也相对复杂一些。
 </p>
 <p>
-要为abc_report添加PHP配置文件，首先需要将<a target="_blank" href="RrdToolGraphBuilder.html">RrdToolGraphBuilder.php</a>文件添加到graph.d目录下。然后创建一个abc_report.php文件，该文件首先要将RrdToolGraphBuilder.php文件包含在内，然后再创建一个graph_report()函数。abc_report.php的具体代码示例如下：
+要为abc_report添加PHP配置文件，首先需要将<a target="_blank" href="RrdToolGraphBuilder.txt">RrdToolGraphBuilder.php</a>文件添加到graph.d目录下。然后创建一个abc_report.php文件，该文件首先要将RrdToolGraphBuilder.php文件包含在内，然后再创建一个graph_report()函数。abc_report.php的具体代码示例如下：
 <pre><code>
 &lt;?php
 include_once ("graph.d/RrdToolGraphBuilder.php");
 
-function graph_my_cpu_report(&$rrdtool_graph) {
-  $builder = new RrdToolGraphBuilder();
-  $builder -> setTitle("MyCPU");
-  $builder -> setUpperLimit('100');
-  $builder -> setLowerLimit('0');
-  $builder -> setVerticalLabel('Percent');
-  $builder -> setFontSize(7);
-  $builder -> addHeight(45);
+function graph_abc_report(&$rrdtool_graph) {
+    $builder = new RrdToolGraphBuilder();
+    $builder -> setTitle("MyCPU");
+    $builder -> setUpperLimit('100');
+    $builder -> setLowerLimit('0');
+    $builder -> setVerticalLabel('Percent');
+    $builder -> setFontSize(7);
+    $builder -> addHeight(45);
 
-  $series = new RrdToolGraphSeries();
+    $series = new RrdToolGraphSeries();
+    $series -> setRrdFile("cpu_user.rrd");
+    $series -> setColor("#00FF00");
+    $series -> setTitle("User");
+    $series -> setType(RrdToolGraphSeries::AREA);
+    $series -> setPercent(TRUE);
+    $builder -> addSeries(clone $series);
 
-  /* $rrd_dir是存放rrd文件的目录，在/var/lib/ganglia/rrds目录中的某个子目录中，
-     在程序实际运行过程中$rrd_dir会根据cluster与host的不同而有所变化 */
-  global $rrd_dir;  
-  $series -> setRrdRoot($rrd_dir);
-  $series -> setTitleLength(strlen('System'));
+    $series -> setRrdFile('cpu_nice.rrd');
+    $series -> setColor("#FF0000");
+    $series -> setTitle("Nice");
+    $series -> setType(RrdToolGraphSeries::STOCK);
+    $builder -> addSeries(clone $series);
 
-  $series -> setRrdFile("cpu_user.rrd");
-  $series -> setColor("#00FF00");
-  $series -> setTitle("User");
-  $series -> setType(RrdToolGraphSeries::AREA);
-  $builder -> addSeries($series);
+    $series -> setRrdFile("cpu_system.rrd");
+    $series -> setColor("#FFFF00");
+    $series -> setTitle("System");
+    $builder -> addSeries(clone $series); 
 
-  $series -> setRrdFile('cpu_nice.rrd');
-  $series -> setColor("#FF0000");
-  $series -> setTitle("Nice");
-  $series -> setType(RrdToolGraphSeries::STOCK);
-  $builder -> addSeries($series);
+    $series -> setRrdFile("cpu_wio.rrd");
+    $series -> setColor("#0000FF");
+    $series -> setTitle("Wait");
+    $builder -> addSeries(clone $series);
 
-  $series -> setRrdFile("cpu_system.rrd");
-  $series -> setColor("#FFFF00");
-  $series -> setTitle("System");
-  $builder -> addSeries($series);
-
-  $series -> setRrdFile("cpu_wio.rrd");
-  $series -> setColor("#0000FF");
-  $series -> setTitle("Wait");
-  $builder -> addSeries($series);
-
-  $series -> setRrdFile("cpu_idle.rrd");
-  $series -> setColor("#00FFFF");
-  $series -> setTitle("Idle");
-  $builder -> addSeries($series);
-
-  $builder -> build($rrdtool_graph);
-
-  return $rrdtool_graph;
+    $series -> setRrdFile("cpu_idle.rrd");
+    $series -> setColor("#00FFFF");
+    $series -> setTitle("Idle");
+    $builder -> addSeries($series);
+    
+    $builder -> build($rrdtool_graph);
+    return $rrdtool_graph;
 }
 ?>
 </code></pre>

@@ -1,39 +1,58 @@
-<html>
-
-<head>
-<meta http-equiv=Content-Type content="text/html;charset=utf-8">
-<title>正文</title>
-<link rel="stylesheet" href="styles/default.css" />
-<script src="highlight.pack.js"></script>
-<script>hljs.initHighlightingOnLoad();</script>
-</head>
-
-<body>
-
-<pre><code>
-&lt;?php
+<?php
 class RrdToolGraphSeries {
   const AREA = 1;
   const STOCK = 2;
+  const LINE = 3;
   private $color = "#000000";
   private $rrd_root;
   private $rrd_file;
   private $type;
   private $title;
   private $titleLength;
-
-  function setRrdRoot($rrd_root) {
-    if (!file_exists($rrd_root)) {
-      throw new Exception("invalid direcotry paht $rrd_root");
+  private $unit = 's';
+  private $displayNow = true;
+  private $displayMin = true;
+  private $displayAvg = true;
+  private $displayMax = true;
+  
+  function __construct(){
+    global $rrd_dir;
+    if (!file_exists($rrd_dir)) {
+      throw new Exception("invalid direcotry paht $rrd_dir");
     }
-    if ($rrd_root[strlen($rrd_root) - 1] != "/") {
-      $rrd_root .= "/";
+    if ($rrd_dir[strlen($rrd_dir) - 1] != "/") {
+      $rrd_dir .= "/";
     }
-    $this -> rrd_root = $rrd_root;
+    $this -> rrd_root = $rrd_dir;
+  }
+  
+  function setDisplayNow($bool) {
+  	$this -> displayNow = $bool;
+  }
+  
+  function setDisplayMin($bool) {
+  	$this -> displayMin = $bool;
+  }
+  
+  function setDisplayAvg($bool) {
+  	$this -> displayAvg = $bool;
+  }
+  
+  function setDisplayMax($bool) {
+  	$this -> displayMax = $bool;
+  }
+  
+  function getTitleLength() {
+  	return $this -> titleLength;
   }
 
   function setTitle($title) {
     $this -> title = $title;
+	
+  	$title_length = strlen($title);
+  	if ($title_length > $this -> titleLength) {
+  	  $this -> titleLength = $title_length;
+  	}
   }
 
   function setTitleLength($titleLegth) {
@@ -49,7 +68,7 @@ class RrdToolGraphSeries {
   }
 
   function setType($type) {
-    $valid_values = array(self::AREA, self::STOCK);
+    $valid_values = array(self::AREA, self::STOCK, self::LINE);
     if (!in_array($type, $valid_values)) {
       $errorInfo = 'invalid $type value, the $type must in (';
       $errorInfo .= join($valid_values, ', ');
@@ -57,6 +76,10 @@ class RrdToolGraphSeries {
       throw new Exception($errorInfo);
     }
     $this -> type = $type;
+  }
+  
+  function setPercent($is_percent) {
+  	$this -> unit = $is_percent ? '%' : 's;';
   }
 
   function __toString() {
@@ -71,6 +94,8 @@ class RrdToolGraphSeries {
       $str .= "AREA";
     } else if ($this -> type == self::STOCK) {
       $str .= "STACK";
+	} else if ($this -> type == self::LINE) {
+	  $str .= "LINE2";
     } else {
       throw new Exception("unexpected Error!");
     }
@@ -91,17 +116,26 @@ class RrdToolGraphSeries {
     $str .= "VDEF:$max=$pos,MAXIMUM ";
 
     $space = "";
-    if ($this -> titleLength &amp;&amp; ($spaceNum = $this -> titleLength - strlen($this -> title)) > 0) {
+	$spaceNum = $this -> titleLength - strlen($this -> title);
+    if ($spaceNum > 0) {
       $space = str_repeat(" ", $spaceNum);
     }
-    $str .= "GPRINT:'$last':'{$space} Now\:%5.1lf%%' ";
-    $str .= "GPRINT:'$min':'Min\:%5.1lf%%' ";
-    $str .= "GPRINT:'$avg':'Avg\:%5.1lf%%' ";
-    $str .= "GPRINT:'$max':'Max\:%5.1lf%%\l' ";
+	
+	if ($this -> displayNow) {
+      $str .= "GPRINT:'$last':'{$space} Now\:%5.1lf%{$this -> unit}' ";
+	}
+	if ($this -> displayMin) {
+      $str .= "GPRINT:'$min':'Min\:%5.1lf%{$this -> unit}' ";
+	}
+	if ($this -> displayAvg) {
+      $str .= "GPRINT:'$avg':'Avg\:%5.1lf%{$this -> unit}' ";
+	}
+	if ($this -> displayMax) {
+      $str .= "GPRINT:'$max':'Max\:%5.1lf%{$this -> unit}\l' ";
+	}
 
     return $str;
   }
-
 }
 
 class RrdToolGraphBuilder {
@@ -115,17 +149,24 @@ class RrdToolGraphBuilder {
   private $font_size;
   private $slope_mode = true;
   private $rigid = true;
-  private $series = "";
+  private $series = array();
+  private $max_series_title_length = 0;
 
   function addSeries(RrdToolGraphSeries $series) {
-    $this -> series .= $series -> __toString();
+  	if ($series -> getTitleLength() > $this -> max_series_title_length) {
+  	  $this -> max_series_title_length = $series -> getTitleLength();
+	  for($i =0 ,$len = count($this -> series) ; $i< $len ; $i++) {
+	  	$this -> series[$i] -> setTitleLength($this -> max_series_title_length);
+	  }
+  	}
+  	$this -> series[] = $series;
   }
 
   function addHeight($height_to_add) {
     $this -> add_height += $height_to_add;
   }
 
-  function build(&amp;$rrdtool_graph) {
+  function build(&$rrdtool_graph) {
     if ($this -> title) {
       $rrdtool_graph['title'] = $this -> title;
     }
@@ -154,7 +195,10 @@ class RrdToolGraphBuilder {
     }
     $rrdtool_graph['height'] += $this -> add_height;
 
-    $rrdtool_graph['series'] = $this -> series;
+    $rrdtool_graph['series'] = '';
+    foreach ($this -> series as $s) {
+      $rrdtool_graph['series'] .= $s;
+    }
 
     return $this -> rrdtool_graph;
   }
@@ -189,7 +233,3 @@ class RrdToolGraphBuilder {
 
 }
 ?>
-</code></pre>
-
-</body>
-</html>
