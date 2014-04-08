@@ -94,7 +94,16 @@ chown nobody:nobody /var/lib/ganglia/rrds
 service gmetad start
 service gmond  start
 
+# 关闭防火墙
+service iptables stop
+chkconfig iptables off
+setenforce 0
+
 </code></pre>
+</p>
+
+<p>
+接下来需要编辑/etc/selinux/config文件，将SELINUX=enforcing修改为SELINUX=disabled。
 </p>
 
 
